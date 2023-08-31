@@ -29,13 +29,13 @@ Follow these steps to set up and run the project locally:
 
 3. Install the required dependencies:
 
-    npm install
+    <code>npm install</code>
 
 4. Start the development server:
 
-    npm start
+    <code>npm start</code>
 
-5. Open your web browser and visit http://localhost:3000 to access the application.
+5. Open your web browser and visit <Link>http://localhost:3000</Link> to access the application.
 
 ## Contribution
 Contributions to this project are welcome! If you find any issues or want to add new features, please follow these steps:
