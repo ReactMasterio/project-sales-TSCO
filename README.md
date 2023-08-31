@@ -29,7 +29,7 @@ Follow these steps to set up and run the project locally:
 
 4. run server.js & proxy.js by this Command:
 
-    node <filename>
+    node {fileName}
 
 5. npm install
 
