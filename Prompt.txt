@@ -1,44 +1,17 @@
-{productID && <p>Product ID: {productID}</p>}
-      {rowData && (
-        <div className="bg-white rounded p-4">
-          <h3 className="text-lg font-semibold">Product Information</h3>
-          <img src={rowData.imageSource} alt="" />
-          <p>Product Name: {rowData.productName}</p>
-          <p>Company Price: {rowData.productPrice}</p>
-          <p>Rating: {rowData.rating}</p>
-          <p>Comments: {rowData.productComments}</p>
-          <p>
-            Link:{" "}
-            <a href={rowData.productLink} className="text-blue-500">
-              {rowData.productLink}
-            </a>
-          </p>
-        </div>
-      )}
-      <div>
-        {loading ? (
-          <div style={{ textAlign: "center" }}>
-            <Spin size="large" />
-          </div>
-        ) : (
-          <>
-            <h3>Comment Statistics</h3>
-            <p>Total Comments: {commentStats.commentCounts}</p>
-            <p>Recommended Count: {commentStats.recommendedCount}</p>
-            <p>Not Recommended Count: {commentStats.notRecommendedCount}</p>
-            <p>Neutral Count: {commentStats.neutralCount}</p>
-            {/* ... (other statistics) */}
-            <h3>Most Liked Comment:</h3>
-            <p>Title: {commentStats.mostLikedInfo.title}</p>
-            <p>Body: {commentStats.mostLikedInfo.body}</p>
-            <p>Likes: {commentStats.mostLikedInfo.likes}</p>
-            <p>Dislikes: {commentStats.mostLikedInfo.dislikes}</p>
-            <h3>Most Disliked Comment:</h3>
-            <p>Title: {commentStats.mostDislikedInfo.title}</p>
-            <p>Body: {commentStats.mostDislikedInfo.body}</p>
-            <p>Likes: {commentStats.mostDislikedInfo.likes}</p>
-            <p>Dislikes: {commentStats.mostDislikedInfo.dislikes}</p>
-            {/* Display other comments */}
-          </>
-        )}
-      </div>
+i want an async function that will do the same thing as fetching commentsData from the Api but i want to do somthing else 
+i want in the initial load of the table, table be at loading state until all the comments data from all the rows from current pagination was fetched
+then after the fetch of the current pagination comments show the table at the current pagination
+then in background do the exact same thing for the other pagination but do it in background becuase i want user think i fetched all the data
+* dont intrupt the application doing fetch in background of the app *
+after getting the comments data for each pagination do this:
+1 - first create a folder structure like this using jalali-moment -> DB/currentYear/currentMonth/currentDay
+2 - then save the comment data in this folder as COMMENT_ANALYZE.JSON
+3 - then if the row was clicked check if the DB/currentYear/currentMonth/currentDay was exist if it was check for the rowData.productID
+4 - if productID was exist dont do the fetch instead read it from DB/currentYear/currentMonth/currentDay/COMMENT_ANALYZE.json
+5 - if it was not exist normally fetch the comment data that im already doing for that row and after showing push the data in the json so that on the next click on this row another fetch request dont be run and i just read the data from the json to be fast
+6 - set an timer to do the function every 1 hour for COMMENT_ANALYZE.JSON to be up to date to data be up to date 
+7 - if user was in the current pagination and data comments for that was fetch and user was seeing the current pagination
+  and if user was clicked on the next or any other number in pagination pages stop the async function 
+8 - then got to the pagination page fetch for this page comments data then load the table to be shown 
+9 - then do the other pagination pages
+10 - check every step if the comments data was exist at the COMMENT_ANALYZE.JSON dont fetch and show the data from that

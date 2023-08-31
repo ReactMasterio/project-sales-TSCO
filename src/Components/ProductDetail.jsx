@@ -7,7 +7,7 @@ import {
   LoadingOutlined,
 } from "@ant-design/icons";
 const { Title, Link, Text } = Typography;
-const { TabPane } = Tabs; // Import TabPane from Tabs
+const { TabPane } = Tabs; 
 
 const toPersianDigits = (input) => {
   const persianDigits = ["۰", "۱", "۲", "۳", "۴", "۵", "۶", "۷", "۸", "۹"];
