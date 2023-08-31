@@ -25,7 +25,7 @@ Follow these steps to set up and run the project locally:
 
 2. Navigate to the project directory:
 
-    cd project-sales-TSCO
+    <code>cd project-sales-TSCO</code>
 
 3. Install the required dependencies:
 
