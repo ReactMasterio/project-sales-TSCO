@@ -24,12 +24,15 @@ Follow these steps to set up and run the project locally:
    git clone https://github.com/ReactMaesterio/project-sales-TSCO.git
 
 2. Navigate to the project directory:
+
     cd project-sales-TSCO
 
 3. Install the required dependencies:
+
     npm install
 
 4. Start the development server:
+
     npm start
 
 5. Open your web browser and visit http://localhost:3000 to access the application.
