@@ -1,0 +1,20 @@
+
+.lower-price-row td:nth-child(6){
+    background-color: rgb(255, 216, 216);
+    color: red;
+    font-size: 1.25rem;
+}
+.lower-rate-row td:nth-child(7){
+    background-color: rgb(255, 223, 202);
+    font-weight: bold;
+    color: rgb(255, 102, 0);
+    font-size: 1.25rem;
+}
+.grater-price-row td:nth-child(6){
+    background-color: rgb(205, 255, 205);
+    color: green;
+    font-size: 1.25rem;
+}
+.defualt{
+    color: black;
+}

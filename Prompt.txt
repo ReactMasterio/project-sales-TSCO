@@ -1,0 +1,44 @@
+{productID && <p>Product ID: {productID}</p>}
+      {rowData && (
+        <div className="bg-white rounded p-4">
+          <h3 className="text-lg font-semibold">Product Information</h3>
+          <img src={rowData.imageSource} alt="" />
+          <p>Product Name: {rowData.productName}</p>
+          <p>Company Price: {rowData.productPrice}</p>
+          <p>Rating: {rowData.rating}</p>
+          <p>Comments: {rowData.productComments}</p>
+          <p>
+            Link:{" "}
+            <a href={rowData.productLink} className="text-blue-500">
+              {rowData.productLink}
+            </a>
+          </p>
+        </div>
+      )}
+      <div>
+        {loading ? (
+          <div style={{ textAlign: "center" }}>
+            <Spin size="large" />
+          </div>
+        ) : (
+          <>
+            <h3>Comment Statistics</h3>
+            <p>Total Comments: {commentStats.commentCounts}</p>
+            <p>Recommended Count: {commentStats.recommendedCount}</p>
+            <p>Not Recommended Count: {commentStats.notRecommendedCount}</p>
+            <p>Neutral Count: {commentStats.neutralCount}</p>
+            {/* ... (other statistics) */}
+            <h3>Most Liked Comment:</h3>
+            <p>Title: {commentStats.mostLikedInfo.title}</p>
+            <p>Body: {commentStats.mostLikedInfo.body}</p>
+            <p>Likes: {commentStats.mostLikedInfo.likes}</p>
+            <p>Dislikes: {commentStats.mostLikedInfo.dislikes}</p>
+            <h3>Most Disliked Comment:</h3>
+            <p>Title: {commentStats.mostDislikedInfo.title}</p>
+            <p>Body: {commentStats.mostDislikedInfo.body}</p>
+            <p>Likes: {commentStats.mostDislikedInfo.likes}</p>
+            <p>Dislikes: {commentStats.mostDislikedInfo.dislikes}</p>
+            {/* Display other comments */}
+          </>
+        )}
+      </div>
