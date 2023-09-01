@@ -1,17 +1,252 @@
-i want an async function that will do the same thing as fetching commentsData from the Api but i want to do somthing else 
-i want in the initial load of the table, table be at loading state until all the comments data from all the rows from current pagination was fetched
-then after the fetch of the current pagination comments show the table at the current pagination
-then in background do the exact same thing for the other pagination but do it in background becuase i want user think i fetched all the data
-* dont intrupt the application doing fetch in background of the app *
-after getting the comments data for each pagination do this:
-1 - first create a folder structure like this using jalali-moment -> DB/currentYear/currentMonth/currentDay
-2 - then save the comment data in this folder as COMMENT_ANALYZE.JSON
-3 - then if the row was clicked check if the DB/currentYear/currentMonth/currentDay was exist if it was check for the rowData.productID
-4 - if productID was exist dont do the fetch instead read it from DB/currentYear/currentMonth/currentDay/COMMENT_ANALYZE.json
-5 - if it was not exist normally fetch the comment data that im already doing for that row and after showing push the data in the json so that on the next click on this row another fetch request dont be run and i just read the data from the json to be fast
-6 - set an timer to do the function every 1 hour for COMMENT_ANALYZE.JSON to be up to date to data be up to date 
-7 - if user was in the current pagination and data comments for that was fetch and user was seeing the current pagination
-  and if user was clicked on the next or any other number in pagination pages stop the async function 
-8 - then got to the pagination page fetch for this page comments data then load the table to be shown 
-9 - then do the other pagination pages
-10 - check every step if the comments data was exist at the COMMENT_ANALYZE.JSON dont fetch and show the data from that
+i want this async function : 
+const fetchComments = async () => {
+    setLoading(true);
+
+    try {
+      const response = await fetch(
+        `http://localhost:3002/api/product/${productID}/comments?page=1`
+      );
+      const data = await response.json();
+
+      const totalPages = data?.data?.pager?.total_pages || 0;
+      const currentPage = data?.data?.pager?.current_page || 1;
+      const commentCounts = data?.data?.pager?.total_items || 0;
+      const allComments = [];
+
+      for (let page = currentPage; page <= totalPages; page++) {
+        if (page >= 100) {
+          break;
+        }
+        const pageResponse = await fetch(
+          `http://localhost:3002/api/product/${productID}/comments/?page=${page}`
+        );
+        const pageData = await pageResponse.json();
+        const pageComments = pageData.data.comments;
+
+        for (const comment of pageComments) {
+          allComments.push(comment);
+        }
+      }
+      let recommendedCount = 0;
+      let notRecommendedCount = 0;
+      let totalLikes = 0;
+      let totalDislikes = 0;
+      let mostLikedComment = null;
+      let mostDislikedComment = null;
+      for (const comment of allComments) {
+        const recommendationStatus = comment.recommendation_status;
+        const reactions = comment.reactions;
+        if (recommendationStatus === "recommended") {
+          recommendedCount++;
+        } else if (recommendationStatus === "not_recommended") {
+          notRecommendedCount++;
+        }
+
+        totalLikes += reactions.likes;
+        totalDislikes += reactions.dislikes;
+
+        if (
+          mostLikedComment === null ||
+          reactions.likes > mostLikedComment.reactions.likes
+        ) {
+          mostLikedComment = comment;
+        }
+
+        if (
+          mostDislikedComment === null ||
+          reactions.dislikes > mostDislikedComment.reactions.dislikes
+        ) {
+          mostDislikedComment = comment;
+        }
+      }
+      const neutralCount = rowData.productComments - (recommendedCount + notRecommendedCount);
+      console.log(neutralCount);
+      let recommendedPercentage =
+        (recommendedCount / rowData.productComments) * 100;
+
+        recommendedPercentage = parseInt(recommendedPercentage);
+      let notRecommendedPercentage =
+        (notRecommendedCount / rowData.productComments) * 100;
+
+        notRecommendedPercentage = parseInt(notRecommendedPercentage);
+      let neutralPercentage = 100 - (recommendedPercentage+notRecommendedPercentage);
+      neutralPercentage = parseInt(neutralPercentage);
+      console.log(
+        recommendedPercentage,
+        notRecommendedPercentage,
+        neutralPercentage
+      );
+      
+      const mostLikedInfo = {
+        title: mostLikedComment?.title || "",
+        body: mostLikedComment?.body || "",
+        likes: mostLikedComment?.reactions?.likes || 0,
+        dislikes: mostLikedComment?.reactions?.dislikes || 0,
+      };
+
+      const mostDislikedInfo = {
+        title: mostDislikedComment?.title || "",
+        body: mostDislikedComment?.body || "",
+        likes: mostDislikedComment?.reactions?.likes || 0,
+        dislikes: mostDislikedComment?.reactions?.dislikes || 0,
+      };
+
+      const updatedStats = {
+        commentCounts,
+        recommendedCount,
+        notRecommendedCount,
+        neutralCount,
+        totalLikes,
+        totalDislikes,
+        recommendedPercentage,
+        notRecommendedPercentage,
+        neutralPercentage,
+        mostLikedInfo,
+        mostDislikedInfo,
+      };
+      setCommentStats(updatedStats);
+      setCommentData(allComments);
+    } catch (error) {
+      console.error("Error fetching data:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+to be added as a method in this class : 
+class ApiService {
+  constructor() {
+    this.baseURL = "https://api.digikala.com/v1";
+  }
+  
+
+  async productCount(brandName) {
+    try {
+      const fetchModule = await import("node-fetch");
+      const fetch = fetchModule.default;
+      const response = await fetch(
+        `${this.baseURL}/brands/${brandName}/?no_redirect=1&seo_url=&page=1`
+      );
+      const data = await response.json();
+      return data.data.pager;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  async fetchProductsByBrand(brandName) {
+    let listOfProducts = [];
+    try {
+      const pager = await this.productCount(brandName);
+      for (let i = pager.current_page; i <= /* pager.total_pages */2; i++) {
+        console.log(i);
+        const fetchModule = await import("node-fetch");
+        const fetch = fetchModule.default;
+        const response = await fetch(
+          `${this.baseURL}/brands/${brandName}/?no_redirect=1&seo_url=&page=${i}`
+        );
+        const data = await response.json();
+        listOfProducts.push(...data.data.products);
+        if (i >= pager.total_pages && i >= pager.current_page + 1) {
+          break;
+        }
+      }
+      return listOfProducts;
+    } catch (error) {
+      return [];
+    }
+  }
+
+  async fetchProductDetails(productId) {
+    try {
+      const fetchModule = await import("node-fetch");
+      const response = await fetchModule.default(
+        `${this.baseURL}/product/${productId}/`
+      );
+      const data = await response.json();
+      const ratingValue =
+        data?.data?.seo?.markup_schema?.[0]?.aggregateRating?.ratingValue || 0;
+      return { productDetails: data, ratingValue };
+    } catch (error) {
+      return null;
+    }
+  }
+
+  createCombinedProduct(
+    productData,
+    ratingValue,
+  ) {
+    const product = productData.data.product || {};
+    const category = product.category || {};
+    const baseurl = `https://www.digikala.com`;
+
+    const combinedProduct = {
+      productID: product.id || 0,
+      productName: product.title_fa || "",
+      productLink: `${baseurl}${product.url?.uri || ""}`,
+      productCategory: category.title_fa || "",
+      imageSource: product.images?.main?.url[0] || "",
+      productVotes: product.rating?.count || 0,
+      productSatisfaction: product.default_variant?.rate || 0,
+      productWarranty: product.default_variant?.warranty?.title_fa || "",
+      sellerName: product.default_variant?.seller?.title || "",
+      sellerID: product.default_variant?.seller?.id || 0,
+      productPrice:
+        removeLastDigit(product.default_variant?.price?.selling_price) || "",
+      rating: ratingValue,
+      productComments: product.comments_count || 0,
+      otherSellers: [],
+    };
+
+    for (const variant of product.variants || []) {
+      combinedProduct.otherSellers.push({
+        otherSellerId: variant.seller?.id || 0,
+        otherSellerName: variant.seller?.title || "",
+        otherSellerWarranty: variant.warranty?.title_fa || "",
+        otherSellerPrice: removeLastDigit(variant.price?.selling_price) || "",
+      });
+    }
+
+    return combinedProduct;
+  }
+
+  async fetchCombinedDataAndSaveToFile(brandName) {
+    try {
+      console.log("Fetching products by brand:", brandName);
+      const startTime = new Date(); // Record start time
+      console.log(startTime);
+      const listOfProducts = await this.fetchProductsByBrand(brandName);
+      console.log("Total products fetched:", listOfProducts.length);
+      const combinedProducts = [];
+
+      for (const product of listOfProducts) {
+        const productDetailsWithRating = await this.fetchProductDetails(
+          product.id
+        );
+        if (productDetailsWithRating.productDetails) {
+          const ratingValue = productDetailsWithRating.ratingValue;
+          const combinedProduct = this.createCombinedProduct(
+            productDetailsWithRating.productDetails,
+            ratingValue,
+          );
+
+          combinedProducts.push(combinedProduct);
+        }
+      }
+
+      const currentDate = moment().format("jYYYY/jMM/jDD");
+      const filePath = path.join(__dirname, `DB/${currentDate}/API_DATA.json`);
+      const directoryPath = path.dirname(filePath);
+      fs.mkdirSync(directoryPath, { recursive: true });
+
+      const jsonData = JSON.stringify(combinedProducts, null, 2);
+      fs.writeFileSync(filePath, jsonData, "utf8");
+
+      const endTime = new Date(); // Record end time
+      const elapsedTimeMinutes = (endTime - startTime) / (1000 * 60);
+      console.log(`Total time taken: ${elapsedTimeMinutes.toFixed(2)} minutes`);
+    } catch (error) {
+      console.error(`Error processing data:`, error);
+    }
+  }
+}
