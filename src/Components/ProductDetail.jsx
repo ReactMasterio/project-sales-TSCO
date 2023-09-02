@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Modal, Spin, Typography, Tabs } from "antd";
+import { Modal, Spin, Typography, Tabs, notification } from "antd";
 import {
   CaretUpOutlined,
   CaretDownOutlined,
@@ -7,7 +7,7 @@ import {
   LoadingOutlined,
 } from "@ant-design/icons";
 const { Title, Link, Text } = Typography;
-const { TabPane } = Tabs; 
+const { TabPane } = Tabs;
 
 const toPersianDigits = (input) => {
   const persianDigits = ["۰", "۱", "۲", "۳", "۴", "۵", "۶", "۷", "۸", "۹"];
@@ -30,6 +30,7 @@ const toPersianDigits = (input) => {
 const ProductDetail = ({ visible, onClose, productID, rowData }) => {
   const [commentData, setCommentData] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [productData, setProductData] = useState({});
   const [commentStats, setCommentStats] = useState({
     commentCounts: 0,
     recommendedCount: 0,
@@ -45,10 +46,45 @@ const ProductDetail = ({ visible, onClose, productID, rowData }) => {
   });
 
   useEffect(() => {
-    if (visible && productID) {
-      fetchComments();
+    if (visible) {
+      try {
+        fetchComments();
+
+        const newComment = {
+          productID:123456879,
+        };
+
+        fetch("/save-stats", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(newComment),
+        })
+          .then((response) => {
+            if (!response.ok) {
+              throw new Error("Failed to add comment");
+            }
+            return response.json();
+          })
+          .then((data) => {
+            console.log(data.message); // This will log "Comment added successfully"
+          })
+          .catch((error) => {
+            console.error("Error adding comment:", error);
+          });
+
+          
+      } catch (error) {
+        notification.error({
+          message: "Error",
+          description: "An error occurred while fetching comments.",
+        });
+      }
     }
-  }, [visible, productID]);
+
+
+  }, [visible]);
 
   const fetchComments = async () => {
     setLoading(true);
@@ -110,24 +146,20 @@ const ProductDetail = ({ visible, onClose, productID, rowData }) => {
           mostDislikedComment = comment;
         }
       }
-      const neutralCount = rowData.productComments - (recommendedCount + notRecommendedCount);
-      console.log(neutralCount);
-      let recommendedPercentage =
-        (recommendedCount / rowData.productComments) * 100;
+      const neutralCount =
+        commentCounts - (recommendedCount + notRecommendedCount);
 
-        recommendedPercentage = parseInt(recommendedPercentage);
+      let recommendedPercentage = (recommendedCount / commentCounts) * 100;
+
+      recommendedPercentage = parseInt(recommendedPercentage);
       let notRecommendedPercentage =
-        (notRecommendedCount / rowData.productComments) * 100;
+        (notRecommendedCount / commentCounts) * 100;
 
-        notRecommendedPercentage = parseInt(notRecommendedPercentage);
-      let neutralPercentage = 100 - (recommendedPercentage+notRecommendedPercentage);
+      notRecommendedPercentage = parseInt(notRecommendedPercentage);
+      let neutralPercentage =
+        100 - (recommendedPercentage + notRecommendedPercentage);
       neutralPercentage = parseInt(neutralPercentage);
-      console.log(
-        recommendedPercentage,
-        notRecommendedPercentage,
-        neutralPercentage
-      );
-      
+
       const mostLikedInfo = {
         title: mostLikedComment?.title || "",
         body: mostLikedComment?.body || "",
@@ -143,6 +175,7 @@ const ProductDetail = ({ visible, onClose, productID, rowData }) => {
       };
 
       const updatedStats = {
+        productID,
         commentCounts,
         recommendedCount,
         notRecommendedCount,

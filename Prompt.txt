@@ -1,5 +1,56 @@
-i want this async function : 
-const fetchComments = async () => {
+import React, { useEffect, useState } from "react";
+import { Modal, Spin, Typography, Tabs } from "antd";
+import {
+  CaretUpOutlined,
+  CaretDownOutlined,
+  MinusOutlined,
+  LoadingOutlined,
+} from "@ant-design/icons";
+const { Title, Link, Text } = Typography;
+const { TabPane } = Tabs; 
+
+const toPersianDigits = (input) => {
+  const persianDigits = ["۰", "۱", "۲", "۳", "۴", "۵", "۶", "۷", "۸", "۹"];
+  const inputString = String(input);
+  let formattedString = "";
+  let groupCounter = 0;
+
+  for (let i = inputString.length - 1; i >= 0; i--) {
+    if (groupCounter === 3) {
+      formattedString = "," + formattedString;
+      groupCounter = 0;
+    }
+    formattedString = persianDigits[inputString[i]] + formattedString;
+    groupCounter++;
+  }
+
+  return formattedString;
+};
+
+const ProductDetail = ({ visible, onClose, productID, rowData }) => {
+  const [commentData, setCommentData] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [commentStats, setCommentStats] = useState({
+    commentCounts: 0,
+    recommendedCount: 0,
+    notRecommendedCount: 0,
+    neutralCount: 0,
+    totalLikes: 0,
+    totalDislikes: 0,
+    recommendedPercentage: 0,
+    notRecommendedPercentage: 0,
+    neutralPercentage: 0,
+    mostLikedInfo: {},
+    mostDislikedInfo: {},
+  });
+
+  useEffect(() => {
+    if (visible && productID) {
+      fetchComments();
+    }
+  }, [visible, productID]);
+
+  const fetchComments = async () => {
     setLoading(true);
 
     try {
@@ -113,140 +164,291 @@ const fetchComments = async () => {
     }
   };
 
-to be added as a method in this class : 
-class ApiService {
-  constructor() {
-    this.baseURL = "https://api.digikala.com/v1";
-  }
-  
+  return (
+    <>
+      {loading ? (
+        <Modal
+          visible={true}
+          footer={null}
+          centered
+          closable={false}
+          width={150}
+          className="flex justify-center align-middle items-center"
+        >
+          <div>
+            <LoadingOutlined className="mr-2" />
+            Loading...
+          </div>
+        </Modal>
+      ) : (
+        <Modal
+          visible={visible}
+          onCancel={onClose}
+          footer={null}
+          title="Product Details"
+          width="95vw"
+          centered
+          bodyStyle={{ maxHeight: "80vh", overflow: "auto" }}
+        >
+          <section className="flex">
+            <div
+              className="flex flex-col items-center justify-between w-[40%] p-4"
+              style={{
+                flexShrink: 0,
+                height: "100%",
+                position: "sticky",
+                top: 0,
+              }}
+            >
+              {rowData && <img src={rowData.imageSource} alt="Product" />}
+            </div>
 
-  async productCount(brandName) {
-    try {
-      const fetchModule = await import("node-fetch");
-      const fetch = fetchModule.default;
-      const response = await fetch(
-        `${this.baseURL}/brands/${brandName}/?no_redirect=1&seo_url=&page=1`
-      );
-      const data = await response.json();
-      return data.data.pager;
-    } catch (error) {
-      return null;
-    }
-  }
+            <div className="flex flex-col items-end w-[60%] p-4 border rounded-lg">
+              <div dir="rtl">
+                {(rowData && <Title level={2}>{rowData.productName}</Title>) ||
+                  ""}
+                {(rowData && (
+                  <Link
+                    type="secondary"
+                    href={rowData.productLink}
+                    target="_blank"
+                  >
+                    View Product
+                  </Link>
+                )) ||
+                  ""}
+              </div>
+              <div className="flex align-middle justify-center items-center gap-24 w-full my-8">
+                {rowData && (
+                  <div className="text-center" dir="rtl">
+                    <Title type="secondary" level={3}>
+                      {toPersianDigits(rowData.productPrice)} تومان
+                    </Title>
+                  </div>
+                )}
+                {rowData && (
+                  <div className="text-center" dir="rtl">
+                    <Title type="secondary" level={3}>
+                      {toPersianDigits(rowData.productPrice)} تومان
+                    </Title>
+                  </div>
+                )}
+              </div>
 
-  async fetchProductsByBrand(brandName) {
-    let listOfProducts = [];
+              <div className="flex gap-8 w-full justify-center align-middle my-4">
+                <div className="text-center inline-flex">
+                  <Title level={4}>
+                    Total Comments: {commentStats.commentCounts}
+                  </Title>
+                </div>
+                <div className="text-center inline-flex">
+                  <Title level={4}>
+                    Recommended Count: {commentStats.recommendedCount}
+                  </Title>
+                </div>
+                <div className="text-center inline-flex">
+                  <Title level={4}>
+                    Not Recommended Count: {commentStats.notRecommendedCount}
+                  </Title>
+                </div>
+                <div className="text-center inline-flex">
+                  <Title level={4}>
+                    Neutral Count: {commentStats.neutralCount}
+                  </Title>
+                </div>
+              </div>
+              <div className="flex gap-8 w-full justify-center align-middle my-4">
+                <div className="text-center inline-flex">
+                  <Title level={4}>
+                    Recommended :{" "}
+                    {commentStats.recommendedPercentage.toFixed(0)}%
+                  </Title>
+                </div>
+                <div className="text-center inline-flex">
+                  <Title level={4}>
+                    Not Recommended:{" "}
+                    {commentStats.notRecommendedPercentage.toFixed(0)}%
+                  </Title>
+                  <p className="mx-2"></p>
+                </div>
+                <div className="text-center inline-flex">
+                  <Title level={4}>
+                    Neutral: {commentStats.neutralPercentage.toFixed(0)}%
+                  </Title>
+                </div>
+              </div>
+
+              <div className="w-full">
+                <Tabs defaultActiveKey="1" centered>
+                  <TabPane tab="OtherSellers" key="1">
+                    <div className="p-4 max-h-[480px] overflow-y-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+                      {rowData &&
+                        rowData.otherSellers.map((seller, index) => (
+                          <div
+                            key={index}
+                            className="border p-4 rounded-md text-center shadow-md bg-white hover:bg-gray-100 transition-colors duration-300 m-2"
+                            dir="rtl"
+                          >
+                            <Title level={4} className="mb-2">
+                              کد: {seller.otherSellerId}
+                            </Title>
+                            <Title level={5} className="mb-2">
+                              نام فروشنده: {seller.otherSellerName}
+                            </Title>
+                            <Title level={5}>
+                              گارانتی: {seller.otherSellerWarranty}
+                            </Title>
+                            <Title level={3} dir="rtl">
+                              {toPersianDigits(seller.otherSellerPrice)} تومان{" "}
+                              {seller.otherSellerPrice >
+                              rowData.productPrice ? (
+                                <CaretUpOutlined style={{ color: "green" }} />
+                              ) : seller.otherSellerPrice <
+                                rowData.productPrice ? (
+                                <CaretDownOutlined style={{ color: "red" }} />
+                              ) : (
+                                <MinusOutlined className="text-gray-400" />
+                              )}
+                            </Title>
+                          </div>
+                        ))}
+                    </div>
+                  </TabPane>
+                  <TabPane tab="Comments" key="2">
+                    <div className="p-4">
+                      <div
+                        className="border p-4 rounded-md shadow-md bg-white"
+                        dir="rtl"
+                      >
+                        <Title level={2}>کامنت با بیشترین موافق</Title>
+                        <Title level={4}>
+                          <strong>عنوان :</strong>{" "}
+                          {commentStats.mostLikedInfo.title}
+                        </Title>
+                        <Title level={4}>
+                          <strong>نظر :</strong>{" "}
+                          {commentStats.mostLikedInfo.body}
+                        </Title>
+                        <Title level={4}>
+                          <strong>موافق:</strong>{" "}
+                          {commentStats.mostLikedInfo.likes}
+                        </Title>
+                        <Title level={4}>
+                          <strong>مخالف:</strong>{" "}
+                          {commentStats.mostLikedInfo.dislikes}
+                        </Title>
+                      </div>
+                      <div
+                        className="border p-4 rounded-md shadow-md bg-white my-4"
+                        dir="rtl"
+                      >
+                        <Title level={2}>کامنت با بیشترین مخالف</Title>
+                        <Title level={5}>
+                          <strong>عنوان :</strong>{" "}
+                          {commentStats.mostDislikedInfo.title}
+                        </Title>
+                        <Title level={5}>
+                          <strong>نظر :</strong>{" "}
+                          {commentStats.mostDislikedInfo.body}
+                        </Title>
+                        <Title level={5}>
+                          <strong>موافق:</strong>{" "}
+                          {commentStats.mostDislikedInfo.likes}
+                        </Title>
+                        <Title level={5}>
+                          <strong>مخالف:</strong>{" "}
+                          {commentStats.mostDislikedInfo.dislikes}
+                        </Title>
+                      </div>
+                    </div>
+                  </TabPane>
+                </Tabs>
+              </div>
+            </div>
+          </section>
+        </Modal>
+      )}
+    </>
+  );
+};
+
+export default ProductDetail;
+make this code to do folowing items: 
+1 - using fetch send a request and check fro ProductID if exist in json file from the fetch (
+  this is the server side code :
+  const express = require("express");
+const fs = require("fs");
+const cors = require("cors");
+const app = express();
+const port = 3020; // Choose an available port
+
+// Middleware to parse JSON request bodies
+app.use(express.json());
+app.use(cors());
+
+// Define a route to handle POST requests for saving updatedStats
+app.post("/save-stats", (req, res) => {
+  try {
+    const updatedStats = req.body;
+
+    // Read existing data from the JSON file
+    let existingStats = [];
+
     try {
-      const pager = await this.productCount(brandName);
-      for (let i = pager.current_page; i <= /* pager.total_pages */2; i++) {
-        console.log(i);
-        const fetchModule = await import("node-fetch");
-        const fetch = fetchModule.default;
-        const response = await fetch(
-          `${this.baseURL}/brands/${brandName}/?no_redirect=1&seo_url=&page=${i}`
-        );
-        const data = await response.json();
-        listOfProducts.push(...data.data.products);
-        if (i >= pager.total_pages && i >= pager.current_page + 1) {
-          break;
-        }
+      const data = fs.readFileSync("updatedStats.json", "utf8");
+      if (data) {
+        existingStats = JSON.parse(data);
       }
-      return listOfProducts;
-    } catch (error) {
-      return [];
-    }
-  }
-
-  async fetchProductDetails(productId) {
-    try {
-      const fetchModule = await import("node-fetch");
-      const response = await fetchModule.default(
-        `${this.baseURL}/product/${productId}/`
-      );
-      const data = await response.json();
-      const ratingValue =
-        data?.data?.seo?.markup_schema?.[0]?.aggregateRating?.ratingValue || 0;
-      return { productDetails: data, ratingValue };
-    } catch (error) {
-      return null;
-    }
-  }
-
-  createCombinedProduct(
-    productData,
-    ratingValue,
-  ) {
-    const product = productData.data.product || {};
-    const category = product.category || {};
-    const baseurl = `https://www.digikala.com`;
-
-    const combinedProduct = {
-      productID: product.id || 0,
-      productName: product.title_fa || "",
-      productLink: `${baseurl}${product.url?.uri || ""}`,
-      productCategory: category.title_fa || "",
-      imageSource: product.images?.main?.url[0] || "",
-      productVotes: product.rating?.count || 0,
-      productSatisfaction: product.default_variant?.rate || 0,
-      productWarranty: product.default_variant?.warranty?.title_fa || "",
-      sellerName: product.default_variant?.seller?.title || "",
-      sellerID: product.default_variant?.seller?.id || 0,
-      productPrice:
-        removeLastDigit(product.default_variant?.price?.selling_price) || "",
-      rating: ratingValue,
-      productComments: product.comments_count || 0,
-      otherSellers: [],
-    };
-
-    for (const variant of product.variants || []) {
-      combinedProduct.otherSellers.push({
-        otherSellerId: variant.seller?.id || 0,
-        otherSellerName: variant.seller?.title || "",
-        otherSellerWarranty: variant.warranty?.title_fa || "",
-        otherSellerPrice: removeLastDigit(variant.price?.selling_price) || "",
-      });
+    } catch (readError) {
+      console.error("Error reading existing stats:", readError);
     }
 
-    return combinedProduct;
-  }
-
-  async fetchCombinedDataAndSaveToFile(brandName) {
-    try {
-      console.log("Fetching products by brand:", brandName);
-      const startTime = new Date(); // Record start time
-      console.log(startTime);
-      const listOfProducts = await this.fetchProductsByBrand(brandName);
-      console.log("Total products fetched:", listOfProducts.length);
-      const combinedProducts = [];
-
-      for (const product of listOfProducts) {
-        const productDetailsWithRating = await this.fetchProductDetails(
-          product.id
-        );
-        if (productDetailsWithRating.productDetails) {
-          const ratingValue = productDetailsWithRating.ratingValue;
-          const combinedProduct = this.createCombinedProduct(
-            productDetailsWithRating.productDetails,
-            ratingValue,
-          );
-
-          combinedProducts.push(combinedProduct);
-        }
-      }
-
-      const currentDate = moment().format("jYYYY/jMM/jDD");
-      const filePath = path.join(__dirname, `DB/${currentDate}/API_DATA.json`);
-      const directoryPath = path.dirname(filePath);
-      fs.mkdirSync(directoryPath, { recursive: true });
-
-      const jsonData = JSON.stringify(combinedProducts, null, 2);
-      fs.writeFileSync(filePath, jsonData, "utf8");
-
-      const endTime = new Date(); // Record end time
-      const elapsedTimeMinutes = (endTime - startTime) / (1000 * 60);
-      console.log(`Total time taken: ${elapsedTimeMinutes.toFixed(2)} minutes`);
-    } catch (error) {
-      console.error(`Error processing data:`, error);
+    // Make sure existingStats is an array
+    if (!Array.isArray(existingStats)) {
+      existingStats = [];
     }
+
+    // Check if the productID already exists in the existing objects
+    const existingObject = existingStats.find(
+      (stat) => stat.productID === updatedStats.productID
+    );
+
+    if (existingObject) {
+      // If the productID exists, return it as the response
+      res.status(200).json(existingObject);
+    } else {
+      // If the productID doesn't exist, merge the existing data with the new data
+      const mergedStats = [...existingStats, updatedStats];
+
+      // Write the mergedStats back to the JSON file
+      fs.writeFileSync("updatedStats.json", JSON.stringify(mergedStats, null, 2));
+
+      res.status(200).json({ message: "Stats saved successfully!" });
+    }
+  } catch (error) {
+    console.error("Error saving stats:", error);
+    res.status(500).json({ error: "Failed to save stats." });
   }
-}
+});
+
+// Define a route to handle GET requests for serving the JSON file
+app.get("/get-stats", (req, res) => {
+  try {
+    // Read the JSON file and send it as a response
+    const data = fs.readFileSync("updatedStats.json", "utf8");
+    const jsonData = JSON.parse(data);
+    res.status(200).json(jsonData);
+  } catch (error) {
+    console.error("Error reading JSON file:", error);
+    res.status(500).json({ error: "Failed to read JSON file." });
+  }
+});
+
+// Start the server
+app.listen(port, () => {
+  console.log(`Server is running on port ${port}`);
+});
+)
+2 - if the product id was exist get that object from the json if not 
+3 - fetch the data from the API and before showing it save it using the fetch POST request
+4 - and then on modal open check if the product id was in the json file instead of fetching from API fetch it from json file 
