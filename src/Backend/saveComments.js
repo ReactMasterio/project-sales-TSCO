@@ -2,81 +2,92 @@ const express = require("express");
 const fs = require("fs");
 const cors = require("cors");
 const app = express();
-const port = 3020; // Choose an available port
+const port = process.env.PORT || 3020;
 
-// Middleware to parse JSON request bodies
 app.use(express.json());
 app.use(cors());
 
-// Define a route to handle POST requests for saving updatedStats
-// Define a route to handle POST requests for saving updatedStats
+const STATS_FILE_PATH = "COMMENTS_DATA.json";
+
+// Function to initialize or reset the JSON file
+function initializeStatsFile() {
+  const emptyArray = [];
+  fs.writeFileSync(STATS_FILE_PATH, JSON.stringify(emptyArray), "utf-8");
+}
+
+// Middleware to handle JSON file initialization
+app.use((req, res, next) => {
+  if (!fs.existsSync(STATS_FILE_PATH)) {
+    initializeStatsFile();
+  }
+  next();
+});
+
 app.post("/save-stats", (req, res) => {
+  const updatedStats = req.body;
+  console.log("Received updatedStats:", updatedStats);
+
   try {
-    const updatedStats = req.body;
-
-    // Check if the JSON file exists
-    if (!fs.existsSync("updatedStats.json")) {
-      // If it doesn't exist, create an empty JSON array
-      fs.writeFileSync("updatedStats.json", "[]");
-    }
-
-    // Read existing data from the JSON file
+    // Read the existing data from the JSON file
+    const existingData = fs.readFileSync(STATS_FILE_PATH, "utf8");
     let existingStats = [];
 
-    try {
-      const data = fs.readFileSync("updatedStats.json", "utf8");
-      if (data) {
-        existingStats = JSON.parse(data);
-      }
-    } catch (readError) {
-      console.error("Error reading existing stats:", readError);
+    if (existingData && existingData.trim() !== "") {
+      existingStats = JSON.parse(existingData);
     }
 
-    // Make sure existingStats is an array
-    if (!Array.isArray(existingStats)) {
-      existingStats = [];
-    }
+    // Convert the updatedStats object into an array
+    const updatedStatsArray = [updatedStats];
 
-    // Check if the productID already exists in the existing objects
-    const existingObject = existingStats.find(
-      (stat) => stat.productID === updatedStats.productID
-    );
+    // Combine the updatedStatsArray with existing data
+    const combinedStats = [...existingStats, ...updatedStatsArray];
 
-    if (existingObject) {
-      // If the productID exists, return it as the response
-      res.status(200).json(existingObject);
-    } else {
-      // If the productID doesn't exist, merge the existing data with the new data
-      const mergedStats = [...existingStats, updatedStats];
+    // Write the combined data back to the file
+    fs.writeFileSync(STATS_FILE_PATH, JSON.stringify(combinedStats, null, 2));
 
-      // Write the mergedStats back to the JSON file
-      fs.writeFileSync(
-        "COMMENTS_DATA.json",
-        JSON.stringify(mergedStats, null, 2)
-      );
-
-      res.status(200).json({ message: "Stats saved successfully!" });
-    }
+    res.status(200).json({ message: "Stats saved successfully!" });
   } catch (error) {
     console.error("Error saving stats:", error);
-    res.status(500).json({ error: "Failed to save stats." });
+    res
+      .status(500)
+      .json({ error: "Failed to save stats. Check server logs for details." });
   }
 });
 
-// Define a route to handle GET requests for serving the JSON file
-app.get("/get-stats", (req, res) => {
+
+
+app.get("/get-product-ids", (req, res) => {
   try {
-    // Read the JSON file and send it as a response
-    const data = fs.readFileSync("updatedStats.json", "utf8");
+    // Read the existing data from the JSON file
+    const data = fs.readFileSync(STATS_FILE_PATH, "utf8");
+
+    // Parse the existing data if it's not empty
+    if (!data || data.trim() === "") {
+      console.log("Stats file is empty.");
+      res.status(200).json([]); // Return an empty array in this case
+      return;
+    }
+
     const jsonData = JSON.parse(data);
-    res.status(200).json(jsonData);
+
+    // Extract productIDs from each item in the JSON data
+    const productIds = jsonData
+      .map((item) => {
+        if (item.productID) {
+          return item.productID;
+        }
+        return null; // Return null for items without productID
+      })
+      .filter((productId) => productId !== null); // Remove null values
+
+    res.status(200).json(productIds);
   } catch (error) {
     console.error("Error reading JSON file:", error);
     res.status(500).json({ error: "Failed to read JSON file." });
   }
 });
 
-// Start the server
+
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
 });

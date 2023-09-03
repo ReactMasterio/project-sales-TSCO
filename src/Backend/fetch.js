@@ -30,7 +30,7 @@ class ApiService {
     let listOfProducts = [];
     try {
       const pager = await this.productCount(brandName);
-      for (let i = pager.current_page; i <= /* pager.total_pages */2; i++) {
+      for (let i = pager.current_page; i <= /* pager.total_pages */5; i++) {
         console.log(i);
         const fetchModule = await import("node-fetch");
         const fetch = fetchModule.default;

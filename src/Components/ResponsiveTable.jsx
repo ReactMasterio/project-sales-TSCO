@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import qs from "qs";
 import { Table } from "antd";
+import axios from "axios";
 import ProductDetail from "./ProductDetail";
 
 const toPersianDigits = (input) => {
@@ -39,7 +40,7 @@ const columns = [
   },
   {
     title: "Company Price",
-    dataIndex: "",
+    dataIndex: "companyPrice",
     sorter: true,
     width: "10%",
     render: () => (
@@ -112,22 +113,37 @@ const getRandomuserParams = (params) => ({
 });
 
 const ResponsiveTable = () => {
-  const [data, setData] = useState();
+  const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [fetchedIds, setFetchedIds] = useState([]);
+
   const [tableParams, setTableParams] = useState({
     pagination: {
       current: 1,
-      pageSize: 2,
+      pageSize: 6,
     },
   });
 
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedProductID, setSelectedProductID] = useState(null);
   const [selectedRowData, setSelectedRowData] = useState(null);
+  const [commentStats, setCommentStats] = useState({
+    commentCounts: 0,
+    recommendedCount: 0,
+    notRecommendedCount: 0,
+    neutralCount: 0,
+    totalLikes: 0,
+    totalDislikes: 0,
+    recommendedPercentage: 0,
+    notRecommendedPercentage: 0,
+    neutralPercentage: 0,
+    mostLikedInfo: {},
+    mostDislikedInfo: {},
+  });
 
-  const showModal = (rowData) => {
-    setSelectedRowData(rowData); // Store the selected row data
-    setSelectedProductID(rowData.productID); // Also store the selected product ID
+  const showModal = async (rowData) => {
+    setSelectedRowData(rowData);
+    setSelectedProductID(rowData.productID);
     setModalVisible(true);
   };
 
@@ -136,27 +152,66 @@ const ResponsiveTable = () => {
     setModalVisible(false);
   };
 
-  const handlePaginationChange = (current, pageSize) => {
-    // Update the pagination object with the new page and page size
-    const newPagination = {
-      current,
-      pageSize,
-    };
+  const handlePaginationChange = async (current, pageSize) => {
+    setLoading(true);
+    try {
+      // Use Axios to send a GET request
+      const response = await axios.get("http://localhost:3020/get-product-ids");
 
-    // Use a callback function to log the updated value after the state has been updated
-    setTableParams((prevTableParams) => {
-      console.log(newPagination); // Log the updated value
-      return {
-        ...prevTableParams,
-        pagination: newPagination,
-      };
+      if (response.status === 200) {
+        const allProductIds = response.data;
+
+        const currentIds = data
+          .slice((current - 1) * pageSize, current * pageSize)
+          .map((item) => item.productID);
+
+        const nonFetchedIds = currentIds.filter((currentId) => {
+          return !allProductIds.includes(currentId);
+        });
+
+        if (nonFetchedIds.length > 0) {
+          const updatedStatsArray = await Promise.all(
+            nonFetchedIds.map((currentId) => fetchCommentsAndStats(currentId))
+          );
+
+          setFetchedIds([...nonFetchedIds]);
+
+          for (const updatedStats of updatedStatsArray) {
+            console.log(updatedStats);
+            // Use Axios to send a POST request
+            const postResponse = await axios.post(
+              "http://localhost:3020/save-stats",
+              JSON.stringify(updatedStats),
+              {
+                headers: {
+                  "Content-Type": "application/json",
+                },
+              }
+            );
+            console.log(postResponse);
+
+            if (postResponse.status === 200) {
+              console.log("Stats saved successfully!");
+            } else {
+              console.error("Failed to save stats.");
+            }
+          }
+        }
+      } else {
+        console.error("Failed to fetch product IDs.");
+      }
+    } catch (error) {
+      console.error("Error saving stats:", error);
+    } finally {
+      setLoading(false);
+    }
+
+    setTableParams({
+      pagination: {
+        current,
+        pageSize,
+      },
     });
-
-    // Reset data since pagination has changed
-    setData([]);
-
-    // Fetch data with the new pagination settings
-    fetchData();
   };
 
   const fetchData = () => {
@@ -168,82 +223,27 @@ const ResponsiveTable = () => {
     )
       .then((res) => res.json())
       .then((results) => {
-        setData(results);
+        setData(results); // This line replaces the existing data with new data
         setLoading(false);
         setTableParams({
           ...tableParams,
           pagination: {
             ...tableParams.pagination,
-            total: results.totalCount, // Update with the actual total count from your data
+            total: results.totalCount,
           },
         });
       });
   };
 
   useEffect(() => {
-    fetchData();
+    fetchData(); // Call handleTableChange with the initial pagination
+    handlePaginationChange(
+      tableParams.pagination.current,
+      tableParams.pagination.pageSize
+    );
   }, [JSON.stringify(tableParams)]);
 
-const handleTableChange = async (pagination, _, sorter) => {
-  // Log the current page
-  console.log("Current Page:", pagination.current);
-
-  // Update the table with loading state
-  setLoading(true);
-
-  try {
-    // Fetch comments for all the IDs on the current page
-    const currentIds = data
-      .slice(
-        (pagination.current - 1) * pagination.pageSize,
-        pagination.current * pagination.pageSize
-      )
-      .map((item) => item.productID);
-
-    const updatedStatsArray = [];
-
-    // Loop through the IDs and fetch comments for each one
-    for (const id of currentIds) {
-      const updatedStats = await fetchComments(id);
-
-      if (updatedStats) {
-        updatedStatsArray.push(updatedStats);
-      }
-    }
-
-    // Send the updatedStatsArray to your server using a POST request
-    const response = await fetch("http://localhost:3020/save-stats", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(updatedStatsArray),
-    });
-
-    if (response.status === 200) {
-      console.log("Stats saved successfully!");
-    } else {
-      console.error("Failed to save stats.");
-    }
-  } catch (error) {
-    console.error("Error saving stats:", error);
-  } finally {
-    // Reset loading state
-    setLoading(false);
-
-    // Reset data since page size or sorting has changed
-    setData([]);
-
-    // Update the table parameters
-    setTableParams({
-      pagination,
-      ...sorter,
-    });
-  }
-};
-
-
-  const fetchComments = async (productID) => {
+  const fetchCommentsAndStats = async (productID) => {
     try {
       const response = await fetch(
         `http://localhost:3002/api/product/${productID}/comments?page=1`
@@ -305,11 +305,9 @@ const handleTableChange = async (pagination, _, sorter) => {
         commentCounts - (recommendedCount + notRecommendedCount);
 
       let recommendedPercentage = (recommendedCount / commentCounts) * 100;
-
       recommendedPercentage = parseInt(recommendedPercentage);
       let notRecommendedPercentage =
         (notRecommendedCount / commentCounts) * 100;
-
       notRecommendedPercentage = parseInt(notRecommendedPercentage);
       let neutralPercentage =
         100 - (recommendedPercentage + notRecommendedPercentage);
@@ -343,10 +341,19 @@ const handleTableChange = async (pagination, _, sorter) => {
         mostLikedInfo,
         mostDislikedInfo,
       };
+
       return updatedStats;
     } catch (error) {
       console.error("Error fetching data:", error);
     }
+  };
+
+  const handleTableChange = async (pagination, _, sorter) => {
+    setLoading(true);
+    setTableParams({
+      pagination,
+      ...sorter,
+    });
   };
 
   return (
@@ -361,13 +368,13 @@ const handleTableChange = async (pagination, _, sorter) => {
         onRow={(record) => ({
           onClick: () => showModal(record),
         })}
-        onPaginationChange={handlePaginationChange} // Add this line
+        onPaginationChange={handlePaginationChange}
       />
       <ProductDetail
         visible={modalVisible}
         onClose={hideModal}
         productID={selectedProductID}
-        rowData={selectedRowData} // Pass the selected row data to the modal
+        rowData={selectedRowData}
       />
     </div>
   );
