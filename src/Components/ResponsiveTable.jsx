@@ -115,6 +115,7 @@ const getRandomuserParams = (params) => ({
 const ResponsiveTable = () => {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [initialLoad, setInitialLoad] = useState(true); // Add this state
   const [fetchedIds, setFetchedIds] = useState([]);
 
   const [tableParams, setTableParams] = useState({
@@ -152,10 +153,11 @@ const ResponsiveTable = () => {
     setModalVisible(false);
   };
 
+  const fetchedStatsMap = new Map();
+
   const handlePaginationChange = async (current, pageSize) => {
     setLoading(true);
     try {
-      // Use Axios to send a GET request
       const response = await axios.get("http://localhost:3020/get-product-ids");
 
       if (response.status === 200) {
@@ -165,53 +167,49 @@ const ResponsiveTable = () => {
           .slice((current - 1) * pageSize, current * pageSize)
           .map((item) => item.productID);
 
-        const nonFetchedIds = currentIds.filter((currentId) => {
-          return !allProductIds.includes(currentId);
-        });
+        const nonFetchedIds = currentIds.filter(
+          (currentId) => !allProductIds.includes(currentId)
+        );
 
         if (nonFetchedIds.length > 0) {
-          const updatedStatsArray = await Promise.all(
-            nonFetchedIds.map((currentId) => fetchCommentsAndStats(currentId))
-          );
+          const updatedStatsArray = [];
+
+          for (const currentId of nonFetchedIds) {
+            // Check if it's not the initial load and statistics for this ID have not been fetched
+            if (!initialLoad && !fetchedStatsMap.has(currentId)) {
+              const updatedStats = await fetchCommentsAndStats(currentId);
+              updatedStatsArray.push(updatedStats);
+              // Store fetched statistics in the map
+              fetchedStatsMap.set(currentId, updatedStats);
+            } else {
+              updatedStatsArray.push(fetchedStatsMap.get(currentId));
+            }
+          }
 
           setFetchedIds([...nonFetchedIds]);
 
           for (const updatedStats of updatedStatsArray) {
             console.log(updatedStats);
-            // Use Axios to send a POST request
-            const postResponse = await axios.post(
-              "http://localhost:3020/save-stats",
-              JSON.stringify(updatedStats),
-              {
-                headers: {
-                  "Content-Type": "application/json",
-                },
-              }
-            );
-            console.log(postResponse);
-
-            if (postResponse.status === 200) {
-              console.log("Stats saved successfully!");
-            } else {
-              console.error("Failed to save stats.");
-            }
+            // Handle the updated stats data here if needed, but remove the POST request
           }
         }
       } else {
         console.error("Failed to fetch product IDs.");
       }
     } catch (error) {
-      console.error("Error saving stats:", error);
+      console.error("Error fetching product IDs:", error);
     } finally {
       setLoading(false);
-    }
+      setTableParams({
+        pagination: {
+          current,
+          pageSize,
+        },
+      });
 
-    setTableParams({
-      pagination: {
-        current,
-        pageSize,
-      },
-    });
+      // After the first interaction, set initialLoad to false
+      setInitialLoad(false);
+    }
   };
 
   const fetchData = () => {
@@ -269,15 +267,18 @@ const ResponsiveTable = () => {
           allComments.push(comment);
         }
       }
+
       let recommendedCount = 0;
       let notRecommendedCount = 0;
       let totalLikes = 0;
       let totalDislikes = 0;
       let mostLikedComment = null;
       let mostDislikedComment = null;
+
       for (const comment of allComments) {
         const recommendationStatus = comment.recommendation_status;
         const reactions = comment.reactions;
+
         if (recommendationStatus === "recommended") {
           recommendedCount++;
         } else if (recommendationStatus === "not_recommended") {
@@ -301,6 +302,7 @@ const ResponsiveTable = () => {
           mostDislikedComment = comment;
         }
       }
+
       const neutralCount =
         commentCounts - (recommendedCount + notRecommendedCount);
 
@@ -342,9 +344,26 @@ const ResponsiveTable = () => {
         mostDislikedInfo,
       };
 
+      const postResponse = await axios.post(
+        "http://localhost:3020/save-stats",
+        JSON.stringify(updatedStats),
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (postResponse.status === 200) {
+        console.log("Stats saved successfully!");
+      } else {
+        console.error("Failed to save stats.");
+      }
+
       return updatedStats;
     } catch (error) {
       console.error("Error fetching data:", error);
+      return null;
     }
   };
 

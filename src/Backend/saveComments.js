@@ -1,93 +1,138 @@
 const express = require("express");
 const fs = require("fs");
-const cors = require("cors");
+const path = require("path");
 const app = express();
-const port = process.env.PORT || 3020;
+const cors = require("cors");
+const bodyParser = require("body-parser");
+const jalaliMoment = require("jalali-moment");
+const port = 3020;
+
+const DATA_DIR = path.join(__dirname, "DB");
 
 app.use(express.json());
 app.use(cors());
+app.use(bodyParser.json());
 
-const STATS_FILE_PATH = "COMMENTS_DATA.json";
+const getCurrentJalaliDate = () => {
+  return jalaliMoment().format("jYYYY/jMM/jDD");
+};
 
-// Function to initialize or reset the JSON file
-function initializeStatsFile() {
-  const emptyArray = [];
-  fs.writeFileSync(STATS_FILE_PATH, JSON.stringify(emptyArray), "utf-8");
-}
-
-// Middleware to handle JSON file initialization
-app.use((req, res, next) => {
-  if (!fs.existsSync(STATS_FILE_PATH)) {
-    initializeStatsFile();
+const ensureDataDirExists = () => {
+  const currentDate = getCurrentJalaliDate();
+  const dataDir = path.join(DATA_DIR, currentDate);
+  if (!fs.existsSync(dataDir)) {
+    fs.mkdirSync(dataDir, { recursive: true });
   }
+};
+
+app.use((req, res, next) => {
+  ensureDataDirExists();
   next();
 });
 
-app.post("/save-stats", (req, res) => {
-  const updatedStats = req.body;
-  console.log("Received updatedStats:", updatedStats);
-
-  try {
-    // Read the existing data from the JSON file
-    const existingData = fs.readFileSync(STATS_FILE_PATH, "utf8");
-    let existingStats = [];
-
-    if (existingData && existingData.trim() !== "") {
-      existingStats = JSON.parse(existingData);
-    }
-
-    // Convert the updatedStats object into an array
-    const updatedStatsArray = [updatedStats];
-
-    // Combine the updatedStatsArray with existing data
-    const combinedStats = [...existingStats, ...updatedStatsArray];
-
-    // Write the combined data back to the file
-    fs.writeFileSync(STATS_FILE_PATH, JSON.stringify(combinedStats, null, 2));
-
-    res.status(200).json({ message: "Stats saved successfully!" });
-  } catch (error) {
-    console.error("Error saving stats:", error);
-    res
-      .status(500)
-      .json({ error: "Failed to save stats. Check server logs for details." });
-  }
-});
-
-
+const currentJalaliDate = getCurrentJalaliDate();
+const [currentJalaliYear, currentJalaliMonth, currentJalaliDay] =
+  currentJalaliDate.split("/");
+const COMMENTS_DATA_FILE = path.join(
+  DATA_DIR,
+  currentJalaliYear,
+  "COMMENTS_DATA",
+  currentJalaliMonth,
+  currentJalaliDay,
+  "COMMENTS_DATA.json"
+);
 
 app.get("/get-product-ids", (req, res) => {
   try {
-    // Read the existing data from the JSON file
-    const data = fs.readFileSync(STATS_FILE_PATH, "utf8");
+    let commentsData = [];
 
-    // Parse the existing data if it's not empty
-    if (!data || data.trim() === "") {
-      console.log("Stats file is empty.");
-      res.status(200).json([]); // Return an empty array in this case
-      return;
+    if (fs.existsSync(COMMENTS_DATA_FILE)) {
+      const fileContents = fs.readFileSync(COMMENTS_DATA_FILE, "utf-8");
+      if (fileContents.trim() !== "") {
+        commentsData = JSON.parse(fileContents);
+      }
     }
 
-    const jsonData = JSON.parse(data);
-
-    // Extract productIDs from each item in the JSON data
-    const productIds = jsonData
-      .map((item) => {
-        if (item.productID) {
-          return item.productID;
-        }
-        return null; // Return null for items without productID
-      })
-      .filter((productId) => productId !== null); // Remove null values
+    const productIds = commentsData.map((comment) => comment.productID);
 
     res.status(200).json(productIds);
   } catch (error) {
-    console.error("Error reading JSON file:", error);
-    res.status(500).json({ error: "Failed to read JSON file." });
+    console.error("Error fetching product IDs:", error);
+    res.status(500).json({ error: "Internal Server Error" });
   }
 });
 
+app.get("/get-comment-stats/:productID", (req, res) => {
+  try {
+    const { productID } = req.params;
+
+    let commentsData = [];
+
+    if (fs.existsSync(COMMENTS_DATA_FILE)) {
+      const fileContents = fs.readFileSync(COMMENTS_DATA_FILE, "utf-8");
+      if (fileContents.trim() !== "") {
+        commentsData = JSON.parse(fileContents);
+      }
+    }
+
+    const comment = commentsData.find(
+      (comment) => comment.productID == productID
+    );
+
+    if (comment) {
+      res.status(200).json(comment);
+    } else {
+      res.status(404).json({ error: "Comment not found" });
+    }
+  } catch (error) {
+    console.error("Error fetching product IDs:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+app.post("/save-stats", (req, res) => {
+  try {
+    const updatedStats = req.body;
+
+    let existingData = [];
+
+    if (fs.existsSync(COMMENTS_DATA_FILE)) {
+      try {
+        existingData = JSON.parse(fs.readFileSync(COMMENTS_DATA_FILE, "utf-8"));
+      } catch (parseError) {
+        console.error("Failed to parse existing data:", parseError);
+      }
+    }
+
+    if (!Array.isArray(existingData)) {
+      existingData = [];
+    }
+
+    existingData.push(updatedStats);
+    // Create the necessary folder structure
+    const folderPath = path.join(
+      DATA_DIR,
+      currentJalaliYear,
+      "COMMENTS_DATA",
+      currentJalaliMonth,
+      currentJalaliDay
+    );
+
+    if (!fs.existsSync(folderPath)) {
+      fs.mkdirSync(folderPath, { recursive: true });
+    }
+
+    fs.writeFileSync(COMMENTS_DATA_FILE, JSON.stringify(existingData, null, 2));
+
+    console.log("Stats saved successfully!");
+
+    res.sendStatus(200);
+  } catch (error) {
+    console.error("Failed to save stats:", error);
+    res.status(500).send("Failed to save stats.");
+  }
+});
 
 app.listen(port, () => {
-  console.log(`Server is running on port ${port}`);
+  console.log(`Server is listening on port ${port}`);
 });

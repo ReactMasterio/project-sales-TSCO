@@ -13,12 +13,18 @@ app.use(cors());
 
 // Route to fetch products
 app.get("/api/products", (req, res) => {
-  const currentDate = jalaliMoment().format("jYYYY/jMM/jDD");
+  const currentDate = jalaliMoment().format("jYYYY/jMM/jDD"); // Use single 'jM' for month without leading zero
+
+  // Use Jalali Moment to get the current Jalali year, month, and day
+  const [currentYear, currentMonth, currentDay] = currentDate.split("/");
 
   const filePath = path.join(
     __dirname,
     "DB",
-    ...currentDate.split("/"), // Split the formatted date and use its parts in the path
+    currentYear,
+    "products", // Hardcode the "products" part of the path
+    currentMonth,
+    currentDay,
     "API_DATA.json"
   );
 

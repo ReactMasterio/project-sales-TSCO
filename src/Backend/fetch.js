@@ -10,7 +10,6 @@ class ApiService {
   constructor() {
     this.baseURL = "https://api.digikala.com/v1";
   }
-  
 
   async productCount(brandName) {
     try {
@@ -30,7 +29,7 @@ class ApiService {
     let listOfProducts = [];
     try {
       const pager = await this.productCount(brandName);
-      for (let i = pager.current_page; i <= /* pager.total_pages */5; i++) {
+      for (let i = pager.current_page; i <= /* pager.total_pages */ 1; i++) {
         console.log(i);
         const fetchModule = await import("node-fetch");
         const fetch = fetchModule.default;
@@ -64,10 +63,7 @@ class ApiService {
     }
   }
 
-  createCombinedProduct(
-    productData,
-    ratingValue,
-  ) {
+  createCombinedProduct(productData, ratingValue) {
     const product = productData.data.product || {};
     const category = product.category || {};
     const baseurl = `https://www.digikala.com`;
@@ -119,15 +115,22 @@ class ApiService {
           const ratingValue = productDetailsWithRating.ratingValue;
           const combinedProduct = this.createCombinedProduct(
             productDetailsWithRating.productDetails,
-            ratingValue,
+            ratingValue
           );
 
           combinedProducts.push(combinedProduct);
         }
       }
 
+      // Use Jalali Moment to get the current Jalali year, month, and day
       const currentDate = moment().format("jYYYY/jMM/jDD");
-      const filePath = path.join(__dirname, `DB/${currentDate}/API_DATA.json`);
+      const [currentYear, currentMonth, currentDay] = currentDate.split("/");
+
+      // Construct the dynamic path
+      const filePath = path.join(
+        __dirname,
+        `DB/${currentYear}/products/${currentMonth}/${currentDay}/API_DATA.json`
+      );
       const directoryPath = path.dirname(filePath);
       fs.mkdirSync(directoryPath, { recursive: true });
 

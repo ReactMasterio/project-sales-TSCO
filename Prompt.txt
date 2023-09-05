@@ -1,175 +1,63 @@
-error : 
-ResponsiveTable.jsx:190     POST http://localhost:3020/save-stats 500 (Internal Server Error)
-handlePaginationChange @ ResponsiveTable.jsx:190
-await in handlePaginationChange (async)
-(anonymous) @ ResponsiveTable.jsx:248
-commitHookEffectListMount @ react-dom.development.js:23150
-commitPassiveMountOnFiber @ react-dom.development.js:24926
-commitPassiveMountEffects_complete @ react-dom.development.js:24891
-commitPassiveMountEffects_begin @ react-dom.development.js:24878
-commitPassiveMountEffects @ react-dom.development.js:24866
-flushPassiveEffectsImpl @ react-dom.development.js:27039
-flushPassiveEffects @ react-dom.development.js:26984
-commitRootImpl @ react-dom.development.js:26935
-commitRoot @ react-dom.development.js:26682
-performSyncWorkOnRoot @ react-dom.development.js:26117
-flushSyncCallbacks @ react-dom.development.js:12042
-(anonymous) @ react-dom.development.js:25651
-ResponsiveTable.jsx:201 Failed to save stats.
-
-my code:
+i have a handlePaginationChange() that fetch const response = await axios.get("http://localhost:3020/get-product-ids") and in response i must get array of IDs or an empty array, then i want to loop in them and find those IDs that are not matched with the array of IDs that i have, then in a for async loop i want to call a function then pass the ID that didnt match
+this is my function:
 const handlePaginationChange = async (current, pageSize) => {
-  console.log("Current Page:", current);
+    setLoading(true);
+    try {
+      // Use Axios to send a GET request
+      const response = await axios.get("http://localhost:3020/get-product-ids");
 
-  setLoading(true);
+      if (response.status === 200) {
+        const allProductIds = response.data;
 
-  try {
-    // Fetch all product IDs from your JSON data
-    const response = await fetch("http://localhost:3020/get-product-ids");
-    if (response.status === 200) {
-      const allProductIds = await response.json();
-      console.log("allProductIds: ", allProductIds);
+        const currentIds = data
+          .slice((current - 1) * pageSize, current * pageSize)
+          .map((item) => item.productID);
 
-      const currentIds = data
-        .slice((current - 1) * pageSize, current * pageSize)
-        .map((item) => item.productID);
-      console.log("currentIds: ", currentIds);
+        const nonFetchedIds = currentIds.filter((currentId) => {
+          return !allProductIds.includes(currentId);
+        });
 
-      // Filter out the currentIds that are not in the allProductIds
-      const nonFetchedIds = currentIds.filter((currentId) => {
-        return !allProductIds.includes(currentId);
-      });
-      console.log("nonFetchedIds: ", nonFetchedIds);
+        if (nonFetchedIds.length > 0) {
+          const updatedStatsArray = await Promise.all(
+            nonFetchedIds.map((currentId) => fetchCommentsAndStats(currentId))
+          );
 
-      // Check if nonFetchedIds is not empty before proceeding
-      if (nonFetchedIds.length > 0) {
-        const updatedStatsArray = await Promise.all(
-          nonFetchedIds.map((currentId) => fetchCommentsAndStats(currentId))
-        );
+          setFetchedIds([...nonFetchedIds]);
 
-        console.log("Non-Matched IDs Data:", updatedStatsArray);
+          for (const updatedStats of updatedStatsArray) {
+            console.log(updatedStats);
+            // Use Axios to send a POST request
+            const postResponse = await axios.post(
+              "http://localhost:3020/save-stats",
+              JSON.stringify(updatedStats),
+              {
+                headers: {
+                  "Content-Type": "application/json",
+                },
+              }
+            );
+            console.log(postResponse);
 
-        setFetchedIds([...fetchedIds, ...nonFetchedIds]);
-
-        // Iterate through updatedStatsArray and post each object separately
-        for (const updatedStats of updatedStatsArray) {
-          const response = await fetch("http://localhost:3020/save-stats", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify(updatedStats),
-          });
-
-          if (response.status === 200) {
-            console.log("Stats saved successfully!");
-          } else {
-            console.error("Failed to save stats.");
+            if (postResponse.status === 200) {
+              console.log("Stats saved successfully!");
+            } else {
+              console.error("Failed to save stats.");
+            }
           }
         }
+      } else {
+        console.error("Failed to fetch product IDs.");
       }
-    } else {
-      console.error("Failed to fetch product IDs.");
-    }
-  } catch (error) {
-    console.error("Error saving stats:", error);
-  } finally {
-    setLoading(false);
-  }
-
-  setTableParams({
-    pagination: {
-      current,
-      pageSize,
-    },
-  });
-};
-my server side code:
-const express = require("express");
-const fs = require("fs");
-const cors = require("cors");
-const app = express();
-const port = 3020; // Choose an available port
-
-// Middleware to parse JSON request bodies
-app.use(express.json());
-app.use(cors());
-
-const STATS_FILE_PATH = "COMMENTS_DATA.json";
-
-// Define a route to handle POST requests for saving updatedStats
-app.post("/save-stats", (req, res) => {
-  try {
-    const updatedStats = req.body;
-
-    // Check if the JSON file exists
-    if (!fs.existsSync(STATS_FILE_PATH)) {
-      // If it doesn't exist, create an empty JSON array
-      fs.writeFileSync(STATS_FILE_PATH, "[]");
+    } catch (error) {
+      console.error("Error saving stats:", error);
+    } finally {
+      setLoading(false);
     }
 
-    // Read existing data from the JSON file
-    let existingStats = [];
-
-    try {
-      const data = fs.readFileSync(STATS_FILE_PATH, "utf8");
-      if (data) {
-        existingStats = JSON.parse(data);
-      }
-    } catch (readError) {
-      console.error("Error reading existing stats:", readError);
-    }
-
-    // Make sure existingStats is an array
-    if (!Array.isArray(existingStats)) {
-      existingStats = [];
-    }
-
-    // Append the new data to the existing data
-    existingStats.push(...updatedStats); // Use the spread operator to merge arrays
-
-    // Write the updated data back to the JSON file
-    fs.writeFileSync(STATS_FILE_PATH, JSON.stringify(existingStats, null, 2));
-
-    res.status(200).json({ message: "Stats saved successfully!" });
-  } catch (error) {
-    console.error("Error saving stats:", error);
-    res.status(500).json({ error: "Failed to save stats." });
-  }
-});
-
-
-
-
-
-
-// Define a route to handle GET requests for serving the JSON file
-app.get("/get-product-ids", (req, res) => {
-  try {
-    // Check if the JSON file exists
-    if (!fs.existsSync(STATS_FILE_PATH)) {
-      // If the file doesn't exist, create it with an empty array
-      fs.writeFileSync(STATS_FILE_PATH, "[]", "utf8");
-    }
-
-    // Read the JSON file and extract product IDs
-    const data = fs.readFileSync(STATS_FILE_PATH, "utf8");
-    const jsonData = JSON.parse(data);
-
-    // Extract and return product IDs as an array
-    const productIds = jsonData.map((item) => item.productID);
-
-    res.status(200).json(productIds);
-  } catch (error) {
-    console.error("Error reading or creating JSON file:", error);
-    res.status(500).json({ error: "Failed to read or create JSON file." });
-  }
-});
-
-
-
-
-// Start the server
-app.listen(port, () => {
-  console.log(`Server is running on port ${port}`);
-});
+    setTableParams({
+      pagination: {
+        current,
+        pageSize,
+      },
+    });
+  };
