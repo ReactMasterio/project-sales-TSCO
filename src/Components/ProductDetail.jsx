@@ -45,46 +45,33 @@ const ProductDetail = ({ visible, onClose, productID, rowData }) => {
     mostDislikedInfo: {},
   });
 
-  useEffect(() => {
-    if (visible) {
-      try {
-        fetchComments();
-
-        const newComment = {
-          productID:123456879,
-        };
-
-        fetch("/save-stats", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(newComment),
-        })
-          .then((response) => {
-            if (!response.ok) {
-              throw new Error("Failed to add comment");
-            }
-            return response.json();
-          })
-          .then((data) => {
-            console.log(data.message); // This will log "Comment added successfully"
-          })
-          .catch((error) => {
-            console.error("Error adding comment:", error);
-          });
-
+useEffect(() => {
+  if (visible && rowData) {
+    // Check if rowData is available
+    try {
+      fetch(`http://localhost:3020/get-comment-stats/${productID}`)
+        .then((response) => response.json())
+        .then((data) => {
+          // Check if rowData.productID exists in the data
           
-      } catch (error) {
-        notification.error({
-          message: "Error",
-          description: "An error occurred while fetching comments.",
+          if (productID=== data.productID) {
+            console.log(data);
+            setCommentStats(data);
+          }else{
+            fetchComments();
+          }
+        })
+        .catch((error) => {
+          console.error("Error fetching product data:", error);
         });
-      }
+    } catch (error) {
+      notification.error({
+        message: "Error",
+        description: "An error occurred while fetching product data.",
+      });
     }
-
-
-  }, [visible]);
+  }
+}, [visible, rowData, productID]);
 
   const fetchComments = async () => {
     setLoading(true);
@@ -188,6 +175,28 @@ const ProductDetail = ({ visible, onClose, productID, rowData }) => {
         mostLikedInfo,
         mostDislikedInfo,
       };
+
+      fetch("http://localhost:3020/save-stats", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(updatedStats),
+      })
+        .then((response) => {
+          if (!response.ok) {
+            throw new Error("Failed to save stats");
+          }
+          return response.json();
+        })
+        .then((data) => {
+          console.log(data.message); // This will log "Stats saved successfully"
+        })
+        .catch((error) => {
+          console.error("Error saving stats:", error);
+        });
+
+
       setCommentStats(updatedStats);
       setCommentData(allComments);
     } catch (error) {
@@ -201,7 +210,7 @@ const ProductDetail = ({ visible, onClose, productID, rowData }) => {
     <>
       {loading ? (
         <Modal
-          visible={true}
+          open={true}
           footer={null}
           centered
           closable={false}
@@ -215,7 +224,7 @@ const ProductDetail = ({ visible, onClose, productID, rowData }) => {
         </Modal>
       ) : (
         <Modal
-          visible={visible}
+          open={visible}
           onCancel={onClose}
           footer={null}
           title="Product Details"

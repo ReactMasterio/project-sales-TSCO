@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import qs from "qs";
 import { Table } from "antd";
-import axios from "axios";
+import axios, { CancelToken, isCancel } from "axios";
 import ProductDetail from "./ProductDetail";
 
 const toPersianDigits = (input) => {
@@ -117,14 +117,14 @@ const ResponsiveTable = () => {
   const [loading, setLoading] = useState(false);
   const [initialLoad, setInitialLoad] = useState(true); // Add this state
   const [fetchedIds, setFetchedIds] = useState([]);
-
+  const [paginationChanged, setPaginationChanged] = useState(false);
   const [tableParams, setTableParams] = useState({
     pagination: {
       current: 1,
       pageSize: 6,
     },
   });
-
+  let cancelTokenRef = useRef(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedProductID, setSelectedProductID] = useState(null);
   const [selectedRowData, setSelectedRowData] = useState(null);
@@ -141,10 +141,23 @@ const ResponsiveTable = () => {
     mostLikedInfo: {},
     mostDislikedInfo: {},
   });
+  const [prevPagination, setPrevPagination] = useState({
+    current: 1,
+    pageSize: 6,
+  });
+
+  const [changedPagination, setChangedPagination] = useState({
+    current: 1,
+    pageSize: 6,
+  });
+
+  // Create an AbortController and signal for each fetch request
+  const [abortControllers, setAbortControllers] = useState([]);
 
   const showModal = async (rowData) => {
     setSelectedRowData(rowData);
     setSelectedProductID(rowData.productID);
+    console.log("OPEN");
     setModalVisible(true);
   };
 
@@ -153,33 +166,89 @@ const ResponsiveTable = () => {
     setModalVisible(false);
   };
 
+  const cancelSource = axios.CancelToken.source();
+  // Create a single AbortController and its associated signal
+  const abortController = useRef(new AbortController());
+  const { signal } = abortController.current;
+
   const fetchedStatsMap = new Map();
 
   const handlePaginationChange = async (current, pageSize) => {
-    setLoading(true);
+    // Get the previous pagination values before updating
+    const prevCurrent = tableParams.pagination.current;
+    const prevPageSize = tableParams.pagination.pageSize;
+
+    if (prevCurrent !== current) {
+      // If it has changed, cancel any ongoing requests
+      abortController.current.abort();
+    }
+
+    setLoading(false);
+    setPaginationChanged(true);
+    // Update the tableParams state with the new pagination
+    setTableParams({
+      pagination: {
+        current,
+        pageSize,
+      },
+    });
+
+    // Store the current pagination values as the previous
+    setPrevPagination({
+      current: prevCurrent,
+      pageSize: prevPageSize,
+    });
+
+    console.log("previous : ", prevPagination.current);
+    console.log("changed To : ", current);
+
+    // Cancel ongoing requests from the previous pagination
+    abortControllers.forEach((controller) => {
+      controller.abort();
+    });
+
+    // Create a new AbortController for the current request
+    const newAbortController = new AbortController();
+    const newSignal = newAbortController.signal;
+
+    // Add the new AbortController to the array
+    setAbortControllers([...abortControllers, newAbortController]);
+
     try {
-      const response = await axios.get("http://localhost:3020/get-product-ids");
+      const response = await fetch(
+        "http://localhost:3020/get-product-ids",
+        { signal: newSignal } // Pass the signal to the fetch request
+      );
 
       if (response.status === 200) {
-        const allProductIds = response.data;
+        const allProductIds = await response.json();
+        console.log("all the IDs from JSON : ", allProductIds);
 
         const currentIds = data
           .slice((current - 1) * pageSize, current * pageSize)
           .map((item) => item.productID);
 
+        console.log("Table IDs : ", currentIds);
+
         const nonFetchedIds = currentIds.filter(
           (currentId) => !allProductIds.includes(currentId)
         );
 
-        if (nonFetchedIds.length > 0) {
+        console.log("Non-Fetched IDs : ", nonFetchedIds);
+
+        if (nonFetchedIds.length === 0) {
+          // No non-fetched IDs, so skip the fetching logic
+        } else {
           const updatedStatsArray = [];
 
           for (const currentId of nonFetchedIds) {
-            // Check if it's not the initial load and statistics for this ID have not been fetched
-            if (!initialLoad && !fetchedStatsMap.has(currentId)) {
-              const updatedStats = await fetchCommentsAndStats(currentId);
+            if (!initialLoad || !fetchedStatsMap.has(currentId)) {
+              const updatedStats = await fetchCommentsAndStats(
+                currentId,
+                allProductIds,
+                newSignal
+              );
               updatedStatsArray.push(updatedStats);
-              // Store fetched statistics in the map
               fetchedStatsMap.set(currentId, updatedStats);
             } else {
               updatedStatsArray.push(fetchedStatsMap.get(currentId));
@@ -188,27 +257,17 @@ const ResponsiveTable = () => {
 
           setFetchedIds([...nonFetchedIds]);
 
-          for (const updatedStats of updatedStatsArray) {
-            console.log(updatedStats);
-            // Handle the updated stats data here if needed, but remove the POST request
-          }
         }
       } else {
         console.error("Failed to fetch product IDs.");
       }
     } catch (error) {
-      console.error("Error fetching product IDs:", error);
+      if (error.name === "AbortError") {
+        console.log("Request canceled due to new pagination.");
+        return;
+      }
     } finally {
       setLoading(false);
-      setTableParams({
-        pagination: {
-          current,
-          pageSize,
-        },
-      });
-
-      // After the first interaction, set initialLoad to false
-      setInitialLoad(false);
     }
   };
 
@@ -221,8 +280,7 @@ const ResponsiveTable = () => {
     )
       .then((res) => res.json())
       .then((results) => {
-        setData(results); // This line replaces the existing data with new data
-        setLoading(false);
+        setData(results);
         setTableParams({
           ...tableParams,
           pagination: {
@@ -230,42 +288,74 @@ const ResponsiveTable = () => {
             total: results.totalCount,
           },
         });
+        setLoading(false);
       });
   };
 
   useEffect(() => {
-    fetchData(); // Call handleTableChange with the initial pagination
-    handlePaginationChange(
-      tableParams.pagination.current,
-      tableParams.pagination.pageSize
-    );
-  }, [JSON.stringify(tableParams)]);
+    // Fetch the initial data
+    fetchData();
+  }, [JSON.stringify(tableParams.pagination)]);
 
-  const fetchCommentsAndStats = async (productID) => {
+  useEffect(() => {
+    // Define the function to fetch data and handle pagination
+    const fetchDataAndHandlePaginationChange = () => {
+      const { current, pageSize } = tableParams.pagination;
+      const currentIds = data
+        .slice((current - 1) * pageSize, current * pageSize)
+        .map((item) => item.productID);
+
+      // Check if data is loaded (non-empty) and currentIds are populated
+      if (data.length > 0 && currentIds.length > 0) {
+        // Manually call handlePaginationChange with initial values
+        handlePaginationChange(current, pageSize);
+      }
+    };
+
+    // Call fetchDataAndHandlePaginationChange after the initial data is loaded
+    if (data.length > 0) {
+      fetchDataAndHandlePaginationChange();
+    }
+  }, [data]);
+
+  const fetchCommentsAndStats = async (
+    productID,
+    fetchedProductIDs,
+    signal
+  ) => {
     try {
-      const response = await fetch(
-        `http://localhost:3002/api/product/${productID}/comments?page=1`
-      );
-      const data = await response.json();
+      if (fetchedProductIDs.includes(productID)) {
+        return null;
+      }
 
-      const totalPages = data?.data?.pager?.total_pages || 0;
-      const currentPage = data?.data?.pager?.current_page || 1;
-      const commentCounts = data?.data?.pager?.total_items || 0;
+      let commentCounts;
       const allComments = [];
 
-      for (let page = currentPage; page <= totalPages; page++) {
-        if (page >= 100) {
-          break;
+      let page = 1;
+
+      while (page <= 100) {
+        if (signal.aborted) {
+          return null;
         }
+
         const pageResponse = await fetch(
-          `http://localhost:3002/api/product/${productID}/comments/?page=${page}`
+          `http://localhost:3002/api/product/${productID}/comments/?page=${page}`,
+          { signal: signal }
         );
+
         const pageData = await pageResponse.json();
-        const pageComments = pageData.data.comments;
+        const pageComments = (await pageData.data.comments) || [];
+
+        commentCounts =
+          page === 1
+            ? (await pageData?.data?.pager?.total_items) || 0
+            : commentCounts;
 
         for (const comment of pageComments) {
           allComments.push(comment);
         }
+
+        page++;
       }
 
       let recommendedCount = 0;
@@ -362,7 +452,11 @@ const ResponsiveTable = () => {
 
       return updatedStats;
     } catch (error) {
-      console.error("Error fetching data:", error);
+      if (error.name === "AbortError") {
+        console.log(`Request for productID ${productID} aborted.`);
+      } else {
+        console.error("Error fetching data:", error);
+      }
       return null;
     }
   };
@@ -383,11 +477,13 @@ const ResponsiveTable = () => {
         dataSource={data}
         pagination={tableParams.pagination}
         loading={loading}
-        onChange={handleTableChange}
+        onChange={
+          (pagination) =>
+            handlePaginationChange(pagination.current, pagination.pageSize) // Update this line
+        }
         onRow={(record) => ({
           onClick: () => showModal(record),
         })}
-        onPaginationChange={handlePaginationChange}
       />
       <ProductDetail
         visible={modalVisible}

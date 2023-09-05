@@ -33,24 +33,40 @@ app.use((req, res, next) => {
 const currentJalaliDate = getCurrentJalaliDate();
 const [currentJalaliYear, currentJalaliMonth, currentJalaliDay] =
   currentJalaliDate.split("/");
+const currentHour = jalaliMoment().format("HH"); // Get the current hour
 const COMMENTS_DATA_FILE = path.join(
   DATA_DIR,
   currentJalaliYear,
   "COMMENTS_DATA",
   currentJalaliMonth,
   currentJalaliDay,
+  currentHour, // Include the current hour in the path
   "COMMENTS_DATA.json"
 );
+
+function ensureFileAndDirectoryExists(filePath) {
+  const directoryPath = path.dirname(filePath);
+
+  // Create the necessary folder structure if it doesn't exist
+  if (!fs.existsSync(directoryPath)) {
+    fs.mkdirSync(directoryPath, { recursive: true });
+  }
+
+  // Create the file if it doesn't exist
+  if (!fs.existsSync(filePath)) {
+    fs.writeFileSync(filePath, "[]");
+  }
+}
 
 app.get("/get-product-ids", (req, res) => {
   try {
     let commentsData = [];
 
-    if (fs.existsSync(COMMENTS_DATA_FILE)) {
-      const fileContents = fs.readFileSync(COMMENTS_DATA_FILE, "utf-8");
-      if (fileContents.trim() !== "") {
-        commentsData = JSON.parse(fileContents);
-      }
+    ensureFileAndDirectoryExists(COMMENTS_DATA_FILE);
+
+    const fileContents = fs.readFileSync(COMMENTS_DATA_FILE, "utf-8");
+    if (fileContents.trim() !== "") {
+      commentsData = JSON.parse(fileContents);
     }
 
     const productIds = commentsData.map((comment) => comment.productID);
@@ -68,11 +84,11 @@ app.get("/get-comment-stats/:productID", (req, res) => {
 
     let commentsData = [];
 
-    if (fs.existsSync(COMMENTS_DATA_FILE)) {
-      const fileContents = fs.readFileSync(COMMENTS_DATA_FILE, "utf-8");
-      if (fileContents.trim() !== "") {
-        commentsData = JSON.parse(fileContents);
-      }
+    ensureFileAndDirectoryExists(COMMENTS_DATA_FILE);
+
+    const fileContents = fs.readFileSync(COMMENTS_DATA_FILE, "utf-8");
+    if (fileContents.trim() !== "") {
+      commentsData = JSON.parse(fileContents);
     }
 
     const comment = commentsData.find(
@@ -115,6 +131,7 @@ app.post("/save-stats", (req, res) => {
       currentJalaliYear,
       "COMMENTS_DATA",
       currentJalaliMonth,
+      currentHour,
       currentJalaliDay
     );
 
