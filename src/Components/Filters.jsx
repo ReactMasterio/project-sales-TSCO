@@ -1,9 +1,36 @@
-import React from "react";
+import React, { useState } from "react";
 import { Select } from "antd";
 
 const { Option } = Select;
 
-const Filters = () => {
+const Filters = ({ onFilterChange, categories }) => {
+  const [category, setCategory] = useState(null);
+  const [sale, setSale] = useState(null);
+  const [price, setPrice] = useState(null);
+  const [rate, setRate] = useState(null);
+  const [comments, setComments] = useState(null);
+  const [seller, setSeller] = useState(null);
+  console.log(categories);
+
+  // Create functions to handle filter changes
+  const handleCategoryChange = (value) => {
+    setCategory(value);
+    onFilterChange({ category: value }); // Pass selected category to parent
+    console.log(value);
+  };
+
+  const handleSaleChange = (value) => {
+    setSale(value);
+    onFilterChange({ sale: value }); // Pass selected sale to parent
+    console.log(value);
+  };
+  // Use the categories prop to populate the options for the category Select
+  const categoryOptions = categories.map((category) => (
+    <Option key={category} value={category}>
+      {category}
+    </Option>
+  ));
+
   return (
     <div>
       <Select
@@ -16,16 +43,17 @@ const Filters = () => {
         filterOption={(input, option) =>
           option.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
         }
+        value={category || "all"}
+        onChange={handleCategoryChange}
       >
-        <Option value="category1">Category 1</Option>
-        <Option value="category2">Category 2</Option>
-        {/* Add more category options */}
+        {categoryOptions}
       </Select>
       <Select
         placeholder="Select Sale"
         className="mx-4 my-4"
         size="large"
         style={{ width: 200 }}
+        onChange={handleSaleChange}
       >
         <Option value="underselling">Under Selling</Option>
         <Option value="overselling">Over Selling</Option>
@@ -57,7 +85,7 @@ const Filters = () => {
         <Option value="az">Comments: Low to High</Option>
         <Option value="za">Comments: High to Low</Option>
       </Select>
-      
+
       <Select
         style={{ width: 200 }}
         className="mx-4 my-4"

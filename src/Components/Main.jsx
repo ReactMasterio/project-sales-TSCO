@@ -6,6 +6,18 @@ import ResponsiveTable from "./ResponsiveTable";
 
 const Main = () => {
   const [searchValue, setSearchValue] = useState("");
+  const [selectedFilters, setSelectedFilters] = useState({}); // State to store selected filters
+  const [categories, setCategories] = useState([]); // State to store unique categories
+
+  console.log(categories);
+  const handleCategoryChange = (uniqueCategories) => {
+    setCategories(uniqueCategories);
+  };
+
+  // Function to handle filter changes
+  const handleFilterChange = (filters) => {
+    setSelectedFilters({ ...selectedFilters, ...filters });
+  };
 
   return (
     <div className="w-10/12 mx-auto mt-8">
@@ -15,7 +27,10 @@ const Main = () => {
         </div>
         <div className="w-fullflex justify-center items-center ">
           <div className="">
-            <Filters />
+            <Filters
+              categories={categories}
+              onFilterChange={handleFilterChange}
+            />
           </div>
         </div>
         <div className="w-full flex justify-center items-center">
@@ -23,7 +38,11 @@ const Main = () => {
         </div>
         <div className="w-full">
           <div className="bg-gray-50 p-4">
-            <ResponsiveTable />
+            <ResponsiveTable
+              searchValue={searchValue}
+              filters={selectedFilters}
+              onCategoryChange={handleCategoryChange}
+            />
           </div>
         </div>
       </div>

@@ -59,6 +59,7 @@ function ensureFileAndDirectoryExists(filePath) {
 }
 
 app.get("/get-product-ids", (req, res) => {
+
   try {
     let commentsData = [];
 

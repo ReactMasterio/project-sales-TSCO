@@ -112,7 +112,15 @@ const getRandomuserParams = (params) => ({
   ...params,
 });
 
-const ResponsiveTable = () => {
+// Create a function to extract unique productCategory values
+const extractUniqueCategories = (data) => {
+  const uniqueCategories = [
+    ...new Set(data.map((item) => item.productCategory)),
+  ];
+  return uniqueCategories;
+};
+
+const ResponsiveTable = ({ searchValue, filters, onCategoryChange }) => {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [initialLoad, setInitialLoad] = useState(true); // Add this state
@@ -145,6 +153,7 @@ const ResponsiveTable = () => {
     current: 1,
     pageSize: 6,
   });
+  const [initialData, setInitialData] = useState([]);
 
   const [changedPagination, setChangedPagination] = useState({
     current: 1,
@@ -153,6 +162,7 @@ const ResponsiveTable = () => {
 
   // Create an AbortController and signal for each fetch request
   const [abortControllers, setAbortControllers] = useState([]);
+  const [originalData, setOriginalData] = useState([]);
 
   const showModal = async (rowData) => {
     setSelectedRowData(rowData);
@@ -216,7 +226,7 @@ const ResponsiveTable = () => {
 
     try {
       const response = await fetch(
-        "http://localhost:3020/get-product-ids",
+        "http://192.168.4.110:3020/get-product-ids",
         { signal: newSignal } // Pass the signal to the fetch request
       );
 
@@ -256,7 +266,6 @@ const ResponsiveTable = () => {
           }
 
           setFetchedIds([...nonFetchedIds]);
-
         }
       } else {
         console.error("Failed to fetch product IDs.");
@@ -271,16 +280,27 @@ const ResponsiveTable = () => {
     }
   };
 
-  const fetchData = () => {
+  useEffect(() => {
+    // Fetch the initial data and set it as the original data
+    fetchInitialData();
+  }, []);
+
+  // Function to fetch initial data and set it as originalData
+  const fetchInitialData = () => {
     setLoading(true);
     fetch(
-      `http://localhost:3000/api/products?${qs.stringify(
+      `http://192.168.4.110:3000/api/products?${qs.stringify(
         getRandomuserParams(tableParams)
       )}`
     )
       .then((res) => res.json())
       .then((results) => {
         setData(results);
+        setOriginalData(results); // Set the original data here
+        // Extract unique productCategory values and pass to parent
+        const uniqueCategories = extractUniqueCategories(results);
+        onCategoryChange(uniqueCategories);
+
         setTableParams({
           ...tableParams,
           pagination: {
@@ -291,10 +311,33 @@ const ResponsiveTable = () => {
         setLoading(false);
       });
   };
+  useEffect(() => {
+    // Filter the data based on the searchValue
+    let filteredData = originalData;
+
+    if (searchValue.toLowerCase() !== "") {
+      filteredData = originalData.filter(
+        (item) =>
+          item.productName.toLowerCase().includes(searchValue.toLowerCase()) ||
+          item.productID.toString().includes(searchValue)
+      );
+    }
+
+    // Apply category filter if it's selected
+    if (filters.category) {
+      filteredData = filteredData.filter(
+        (item) => item.productCategory === filters.category
+      );
+    }
+
+
+    // Update the data state with the filtered data
+    setData(filteredData);
+  }, [searchValue, originalData, filters]);
 
   useEffect(() => {
     // Fetch the initial data
-    fetchData();
+    fetchInitialData();
   }, [JSON.stringify(tableParams.pagination)]);
 
   useEffect(() => {
@@ -339,7 +382,7 @@ const ResponsiveTable = () => {
         }
 
         const pageResponse = await fetch(
-          `http://localhost:3002/api/product/${productID}/comments/?page=${page}`,
+          `http://192.168.4.110:3002/api/product/${productID}/comments/?page=${page}`,
           { signal: signal }
         );
 
@@ -435,7 +478,7 @@ const ResponsiveTable = () => {
       };
 
       const postResponse = await axios.post(
-        "http://localhost:3020/save-stats",
+        "http://192.168.4.110:3020/save-stats",
         JSON.stringify(updatedStats),
         {
           headers: {
@@ -459,14 +502,6 @@ const ResponsiveTable = () => {
       }
       return null;
     }
-  };
-
-  const handleTableChange = async (pagination, _, sorter) => {
-    setLoading(true);
-    setTableParams({
-      pagination,
-      ...sorter,
-    });
   };
 
   return (
