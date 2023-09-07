@@ -49,7 +49,7 @@ useEffect(() => {
   if (visible && rowData) {
     // Check if rowData is available
     try {
-      fetch(`http://192.168.4.110:3020/get-comment-stats/${productID}`)
+      fetch(`http://localhost:3020/get-comment-stats/${productID}`)
         .then((response) => response.json())
         .then((data) => {
           // Check if rowData.productID exists in the data
@@ -78,7 +78,7 @@ useEffect(() => {
 
     try {
       const response = await fetch(
-        `http://192.168.4.110:3002/api/product/${productID}/comments?page=1`
+        `http://localhost:3002/api/product/${productID}/comments?page=1`
       );
       const data = await response.json();
 
@@ -92,7 +92,7 @@ useEffect(() => {
           break;
         }
         const pageResponse = await fetch(
-          `http://192.168.4.110:3002/api/product/${productID}/comments/?page=${page}`
+          `http://localhost:3002/api/product/${productID}/comments/?page=${page}`
         );
         const pageData = await pageResponse.json();
         const pageComments = pageData.data.comments;
@@ -176,7 +176,7 @@ useEffect(() => {
         mostDislikedInfo,
       };
 
-      fetch("http://192.168.4.110:3020/save-stats", {
+      fetch("http://localhost:3020/save-stats", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
