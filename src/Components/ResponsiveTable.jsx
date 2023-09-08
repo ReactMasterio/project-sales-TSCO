@@ -226,7 +226,7 @@ const ResponsiveTable = ({ searchValue, filters, onCategoryChange }) => {
 
     try {
       const response = await fetch(
-        "http://localhost:3020/get-product-ids",
+        "http://87.107.104.221:3020/get-product-ids",
         { signal: newSignal } // Pass the signal to the fetch request
       );
 
@@ -289,9 +289,7 @@ const ResponsiveTable = ({ searchValue, filters, onCategoryChange }) => {
   const fetchInitialData = () => {
     setLoading(true);
     fetch(
-      `http://localhost:3000/api/products?${qs.stringify(
-        getRandomuserParams(tableParams)
-      )}`
+      `http://87.107.104.221:3000/api/products`
     )
       .then((res) => res.json())
       .then((results) => {
@@ -382,7 +380,7 @@ const ResponsiveTable = ({ searchValue, filters, onCategoryChange }) => {
         }
 
         const pageResponse = await fetch(
-          `http://localhost:3002/api/product/${productID}/comments/?page=${page}`,
+          `http://87.107.104.221:3002/api/product/${productID}/comments/?page=${page}`,
           { signal: signal }
         );
 
@@ -478,7 +476,7 @@ const ResponsiveTable = ({ searchValue, filters, onCategoryChange }) => {
       };
 
       const postResponse = await axios.post(
-        "http://localhost:3020/save-stats",
+        `http://87.107.104.221:3020/save-stats`,
         JSON.stringify(updatedStats),
         {
           headers: {

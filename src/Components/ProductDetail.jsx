@@ -45,40 +45,40 @@ const ProductDetail = ({ visible, onClose, productID, rowData }) => {
     mostDislikedInfo: {},
   });
 
-useEffect(() => {
-  if (visible && rowData) {
-    // Check if rowData is available
-    try {
-      fetch(`http://localhost:3020/get-comment-stats/${productID}`)
-        .then((response) => response.json())
-        .then((data) => {
-          // Check if rowData.productID exists in the data
-          
-          if (productID=== data.productID) {
-            console.log(data);
-            setCommentStats(data);
-          }else{
-            fetchComments();
-          }
-        })
-        .catch((error) => {
-          console.error("Error fetching product data:", error);
+  useEffect(() => {
+    if (visible && rowData) {
+      // Check if rowData is available
+      try {
+        fetch(`http://87.107.104.221:3020/get-comment-stats/${productID}`)
+          .then((response) => response.json())
+          .then((data) => {
+            // Check if rowData.productID exists in the data
+
+            if (productID === data.productID) {
+              console.log(data);
+              setCommentStats(data);
+            } else {
+              fetchComments();
+            }
+          })
+          .catch((error) => {
+            console.error("Error fetching product data:", error);
+          });
+      } catch (error) {
+        notification.error({
+          message: "Error",
+          description: "An error occurred while fetching product data.",
         });
-    } catch (error) {
-      notification.error({
-        message: "Error",
-        description: "An error occurred while fetching product data.",
-      });
+      }
     }
-  }
-}, [visible, rowData, productID]);
+  }, [visible, rowData, productID]);
 
   const fetchComments = async () => {
     setLoading(true);
 
     try {
       const response = await fetch(
-        `http://localhost:3002/api/product/${productID}/comments?page=1`
+        `htt87.107.104.221:3002/api/product/${productID}/comments?page=1`
       );
       const data = await response.json();
 
@@ -92,7 +92,7 @@ useEffect(() => {
           break;
         }
         const pageResponse = await fetch(
-          `http://localhost:3002/api/product/${productID}/comments/?page=${page}`
+          `87.107.104.221:3002/api/product/${productID}/comments/?page=${page}`
         );
         const pageData = await pageResponse.json();
         const pageComments = pageData.data.comments;
@@ -176,7 +176,7 @@ useEffect(() => {
         mostDislikedInfo,
       };
 
-      fetch("http://localhost:3020/save-stats", {
+      fetch(`//87.107.104.221:3020/save-stats`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -195,7 +195,6 @@ useEffect(() => {
         .catch((error) => {
           console.error("Error saving stats:", error);
         });
-
 
       setCommentStats(updatedStats);
       setCommentData(allComments);
