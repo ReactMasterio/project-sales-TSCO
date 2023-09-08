@@ -289,9 +289,7 @@ const ResponsiveTable = ({ searchValue, filters, onCategoryChange }) => {
   const fetchInitialData = () => {
     setLoading(true);
     fetch(
-      `http://localhost:3000/api/products?${qs.stringify(
-        getRandomuserParams(tableParams)
-      )}`
+      `http://localhost:3000/api/products`
     )
       .then((res) => res.json())
       .then((results) => {
