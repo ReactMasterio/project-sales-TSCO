@@ -1,22 +1,70 @@
-import React, { useState } from "react";
-import { Select } from "antd";
+import React, { useState, useEffect } from "react";
+import { Select, Space, Button } from "antd";
+import { ClearOutlined } from "@ant-design/icons";
 
 const { Option } = Select;
 
-const Filters = ({ onFilterChange, categories }) => {
+const Filters = ({
+  onFilterChange,
+  categories,
+  sellers,
+  resetFilters,
+  resetSellers, // Add resetSellers prop
+  resetCategories, // Add resetCategories prop
+  onClearFilters,
+}) => {
   const [category, setCategory] = useState(null);
   const [sale, setSale] = useState(null);
   const [price, setPrice] = useState(null);
   const [rate, setRate] = useState(null);
   const [comments, setComments] = useState(null);
   const [seller, setSeller] = useState(null);
+  const [categoryValue, setCategoryValue] = useState("all");
+  const [saleValue, setSaleValue] = useState("all");
+  const [priceValue, setPriceValue] = useState("all");
+  const [rateValue, setRateValue] = useState("all");
+  const [commentsValue, setCommentsValue] = useState("all");
+  const [sellerValue, setSellerValue] = useState("all");
   console.log(categories);
+
+  useEffect(() => {
+    if (resetFilters) {
+      setCategory("all");
+      setSale("all");
+      setPrice("all");
+      setRate("all");
+      setComments("all");
+      setSeller("all");
+    }
+    // Add logic to reset other filters when needed
+    if (resetSellers) {
+      setSeller("all");
+    }
+    if (resetCategories) {
+      setCategory("all");
+    }
+  }, [resetFilters, resetSellers, resetCategories]);
+
+  // Function to extract unique seller names from the data
+  const getUniqueSellers = () => {
+    const uniqueSellers = new Set();
+    for (const item of sellers) {
+      uniqueSellers.add(item.sellerName);
+    }
+    return Array.from(uniqueSellers);
+  };
+
+  const uniqueSellers = getUniqueSellers(); // Get unique sellers
 
   // Create functions to handle filter changes
   const handleCategoryChange = (value) => {
     setCategory(value);
-    onFilterChange({ category: value }); // Pass selected category to parent
-    console.log(value);
+    onFilterChange({ category: value });
+  };
+
+  const handleSellersChange = (value) => {
+    setSeller(value);
+    onFilterChange({ seller: value });
   };
 
   const handleSaleChange = (value) => {
@@ -24,83 +72,178 @@ const Filters = ({ onFilterChange, categories }) => {
     onFilterChange({ sale: value }); // Pass selected sale to parent
     console.log(value);
   };
+
+  const handlePriceChange = (value) => {
+    setPrice(value);
+    onFilterChange({ price: value }); // Pass selected sale to parent
+    console.log(value);
+  };
+
+  const handleRateChange = (value) => {
+    setRate(value);
+    onFilterChange({ rate: value }); // Pass selected sale to parent
+    console.log(value);
+  };
+
+  const handleCommentsChange = (value) => {
+    setComments(value);
+    onFilterChange({ comments: value }); // Pass selected sale to parent
+    console.log(value);
+  };
+
   // Use the categories prop to populate the options for the category Select
-  const categoryOptions = categories.map((category) => (
-    <Option key={category} value={category}>
-      {category}
-    </Option>
-  ));
+  const categoryOptions = [
+    <Option key="all" value="all">
+      دسته بندی ها
+    </Option>,
+    ...categories.map((category) => (
+      <Option key={category} value={category}>
+        {category}
+      </Option>
+    )),
+  ];
+
+  const sellersOptions = [
+    <Option key="all" value="all">
+      فروشنده ها
+    </Option>,
+    ...sellers.map((seller) => (
+      <Option key={seller} value={seller}>
+        {seller}
+      </Option>
+    )),
+  ];
+
+  const clearCategory = () => {
+    setCategory("all");
+    console.log(category);
+  };
+
+  const clearSale = () => {
+    setSale("all");
+    console.log(sale);
+  };
+
+  const clearPrice = () => {
+    setPrice("all");
+    console.log(price);
+  };
+
+  const clearRate = () => {
+    setRate("all");
+    console.log(rate);
+  };
+
+  const clearComments = () => {
+    setComments("all");
+    console.log(comments);
+  };
+
+  const clearSeller = () => {
+    setSeller("all");
+    console.log(seller);
+  };
+
+  const handleClearFilters = () => {
+    clearCategory();
+    clearRate();
+    clearPrice();
+    clearSale();
+    clearSeller();
+    clearComments();
+
+    if (typeof onClearFilters === "function") {
+      onClearFilters();
+    }
+  };
+  const rtlStyle = {
+    display: "flex",
+    flexDirection: "row-reverse",
+    justifyContent: "flex-start",
+  };
 
   return (
     <div>
-      <Select
-        style={{ width: 200 }}
-        className="mx-4 my-4"
-        size="large"
-        showSearch
-        placeholder="Select Category"
-        optionFilterProp="children"
-        filterOption={(input, option) =>
-          option.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
-        }
-        value={category || "all"}
-        onChange={handleCategoryChange}
-      >
-        {categoryOptions}
-      </Select>
-      <Select
-        placeholder="Select Sale"
-        className="mx-4 my-4"
-        size="large"
-        style={{ width: 200 }}
-        onChange={handleSaleChange}
-      >
-        <Option value="underselling">Under Selling</Option>
-        <Option value="overselling">Over Selling</Option>
-      </Select>
-      <Select
-        placeholder="Select Price"
-        className="mx-4 my-4"
-        size="large"
-        style={{ width: 200 }}
-      >
-        <Option value="az">Price: Low to High</Option>
-        <Option value="za">Price: High to Low</Option>
-      </Select>
-      <Select
-        placeholder="Select Rate"
-        className="mx-4 my-4"
-        size="large"
-        style={{ width: 200 }}
-      >
-        <Option value="az">Rate: Low to High</Option>
-        <Option value="za">Rate: High to Low</Option>
-      </Select>
-      <Select
-        placeholder="Select Comments"
-        className="mx-4 my-4"
-        size="large"
-        style={{ width: 200 }}
-      >
-        <Option value="az">Comments: Low to High</Option>
-        <Option value="za">Comments: High to Low</Option>
-      </Select>
-
-      <Select
-        style={{ width: 200 }}
-        className="mx-4 my-4"
-        size="large"
-        showSearch
-        placeholder="Select Seller's Name"
-        optionFilterProp="children"
-        filterOption={(input, option) =>
-          option.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
-        }
-      >
-        <Option value="seller1">Seller 1</Option>
-        <Option value="seller2">Seller 2</Option>
-        {/* Add more seller options */}
-      </Select>
+      <Space direction="horizontal" style={{ direction: "rtl" }}>
+        <Select
+          style={{ width: 200 }}
+          className="mx-2 my-4"
+          size="large"
+          showSearch
+          placeholder="Select Category"
+          optionFilterProp="children"
+          filterOption={(input, option) =>
+            option.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
+          }
+          value={category || "all"}
+          onChange={handleCategoryChange}
+        >
+          {categoryOptions}
+        </Select>
+        <Select
+          placeholder="Select Sale"
+          className="mx-2 my-4"
+          size="large"
+          style={{ width: 200 }}
+          onChange={handleSaleChange}
+          value={sale || "all"} // Use defaultValue instead of value
+        >
+          <Option value="all">وضعیت فروش</Option>
+          <Option value="underselling">زیر فروشی</Option>
+          <Option value="overselling">گران فروشی</Option>
+        </Select>
+        <Select
+          placeholder="Select Price"
+          className="mx-2 my-4"
+          size="large"
+          style={{ width: 200 }}
+          onChange={handlePriceChange}
+          value={price || "all"} // Use defaultValue instead of value
+        >
+          <Option value="all">قیمت وبسایت</Option>
+          <Option value="az">صعودی</Option>
+          <Option value="za">نزولی</Option>
+        </Select>
+        <Select
+          placeholder="Select Rate"
+          className="mx-2 my-4"
+          size="large"
+          style={{ width: 200 }}
+          onChange={handleRateChange}
+          value={rate || "all"} // Set "all" as the default value
+        >
+          <Option value="all">رتبه کالا</Option> {/* Default option */}
+          <Option value="az">صعودی</Option>
+          <Option value="za">نزولی</Option>
+        </Select>
+        <Select
+          placeholder="Select Comments"
+          className="mx-2 my-4"
+          size="large"
+          style={{ width: 200 }}
+          onChange={handleCommentsChange}
+          value={comments || "all"} // Set "all" as the default value
+        >
+          <Option value="all">نظرات کالا</Option> {/* Default option */}
+          <Option value="az">صعودی</Option>
+          <Option value="za">نزولی</Option>
+        </Select>
+        <Select
+          style={{ width: 200 }}
+          className="mx-2 my-4"
+          size="large"
+          showSearch
+          placeholder="Select Seller's Name"
+          optionFilterProp="children"
+          filterOption={(input, option) =>
+            option.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
+          }
+          value={seller || "all"} // Use 'seller' state here
+          onChange={handleSellersChange}
+        >
+          {sellersOptions}
+        </Select>
+      </Space>
     </div>
   );
 };

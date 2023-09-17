@@ -7,7 +7,7 @@ const Auth = ({ onAuthSuccess }) => {
 
   const onFinish = async (values) => {
     try {
-      if (values.username === "ali" && values.password === "ali") {
+      if (values.username === "nimda" && values.password === "wasd") {
         console.log("Authentication successful");
 
         message.success("Login Successful");
@@ -28,14 +28,8 @@ const Auth = ({ onAuthSuccess }) => {
   };
 
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        height: "100vh",
-      }}
+    <div className="flex flex-col items-center justify-center h-screen"
+      
     >
       <img src={logo} alt="Company Logo" style={{ width: "250px" }} />
       <Form

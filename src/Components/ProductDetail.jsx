@@ -6,6 +6,7 @@ import {
   MinusOutlined,
   LoadingOutlined,
 } from "@ant-design/icons";
+
 const { Title, Link, Text } = Typography;
 const { TabPane } = Tabs;
 
@@ -45,40 +46,71 @@ const ProductDetail = ({ visible, onClose, productID, rowData }) => {
     mostDislikedInfo: {},
   });
 
-  useEffect(() => {
-    if (visible && rowData) {
-      // Check if rowData is available
-      try {
-        fetch(`http://87.107.104.221:3020/get-comment-stats/${productID}`)
-          .then((response) => response.json())
-          .then((data) => {
-            // Check if rowData.productID exists in the data
+useEffect(() => {
+  if (visible && rowData) {
+    // Check if rowData is available
 
-            if (productID === data.productID) {
-              console.log(data);
-              setCommentStats(data);
-            } else {
-              fetchComments();
-            }
-          })
-          .catch((error) => {
-            console.error("Error fetching product data:", error);
+    // set Loading before fetching
+    setLoading(true);
+    try {
+      fetch(`http://localhost:3020/get-comment-stats/${productID}`)
+        .then(async (response) => {
+          if (response.status === 404) {
+            // Product not found, show notification
+            notification.error({
+              message: "Error",
+              description: "Product not found. Fetching comments...",
+            });
+          } else if (response.ok) {
+            return response.json();
+          } else {
+            throw new Error("An error occurred while fetching product data.");
+          }
+        })
+        .then((data) => {
+          // Check if rowData.productID exists in the data
+
+          if (productID === data.productID) {
+            console.log(data);
+            setCommentStats(data);
+            setLoading(false)
+          } else {
+            notification.error({
+              message: "Error",
+              description:
+                "Comments not Found",
+            });
+          }
+        })
+        .catch((error) => {
+          setLoading(false); // Set loading to false if there's an error during data fetching.
+          // Handle other errors, e.g., show a notification.
+          notification.error({
+            message: "Error",
+            description:
+              "An error occurred while fetching product data. Please try again!",
           });
-      } catch (error) {
-        notification.error({
-          message: "Error",
-          description: "An error occurred while fetching product data.",
         });
-      }
+    } catch (error) {
+      setLoading(false);
+      notification.error({
+        message: "Error",
+        description:
+          "An error occurred while fetching product data. Please try again!",
+      });
+      console.log("didn't find product-comments");
+      fetchComments();
     }
-  }, [visible, rowData, productID]);
+  }
+}, [visible, rowData, productID]);
+
 
   const fetchComments = async () => {
     setLoading(true);
 
     try {
       const response = await fetch(
-        `htt87.107.104.221:3002/api/product/${productID}/comments?page=1`
+        `http://localhost:3002/api/product/${productID}/comments?page=1`
       );
       const data = await response.json();
 
@@ -92,7 +124,7 @@ const ProductDetail = ({ visible, onClose, productID, rowData }) => {
           break;
         }
         const pageResponse = await fetch(
-          `87.107.104.221:3002/api/product/${productID}/comments/?page=${page}`
+          `http://localhost:3002/api/product/${productID}/comments/?page=${page}`
         );
         const pageData = await pageResponse.json();
         const pageComments = pageData.data.comments;
@@ -176,7 +208,7 @@ const ProductDetail = ({ visible, onClose, productID, rowData }) => {
         mostDislikedInfo,
       };
 
-      fetch(`//87.107.104.221:3020/save-stats`, {
+      fetch(`http://localhost:3020/save-stats`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -254,7 +286,7 @@ const ProductDetail = ({ visible, onClose, productID, rowData }) => {
                     href={rowData.productLink}
                     target="_blank"
                   >
-                    View Product
+                    دیدن وبسایت
                   </Link>
                 )) ||
                   ""}
@@ -279,49 +311,49 @@ const ProductDetail = ({ visible, onClose, productID, rowData }) => {
               <div className="flex gap-8 w-full justify-center align-middle my-4">
                 <div className="text-center inline-flex">
                   <Title level={4}>
-                    Total Comments: {commentStats.commentCounts}
+                    تعداد نظرات: {commentStats.commentCounts}
                   </Title>
                 </div>
                 <div className="text-center inline-flex">
                   <Title level={4}>
-                    Recommended Count: {commentStats.recommendedCount}
+                    تعداد پیشنهاد شده: {commentStats.recommendedCount}
                   </Title>
                 </div>
                 <div className="text-center inline-flex">
                   <Title level={4}>
-                    Not Recommended Count: {commentStats.notRecommendedCount}
+                    تعداد پیشنهاد نشده: {commentStats.notRecommendedCount}
                   </Title>
                 </div>
                 <div className="text-center inline-flex">
                   <Title level={4}>
-                    Neutral Count: {commentStats.neutralCount}
+                    بدون نظر: {commentStats.neutralCount}
                   </Title>
                 </div>
               </div>
               <div className="flex gap-8 w-full justify-center align-middle my-4">
                 <div className="text-center inline-flex">
                   <Title level={4}>
-                    Recommended :{" "}
+                    درصد پیشنهاد شده :{" "}
                     {commentStats.recommendedPercentage.toFixed(0)}%
                   </Title>
                 </div>
                 <div className="text-center inline-flex">
                   <Title level={4}>
-                    Not Recommended:{" "}
+                    درصد پیشنهاد نشده:{" "}
                     {commentStats.notRecommendedPercentage.toFixed(0)}%
                   </Title>
                   <p className="mx-2"></p>
                 </div>
                 <div className="text-center inline-flex">
                   <Title level={4}>
-                    Neutral: {commentStats.neutralPercentage.toFixed(0)}%
+                    درصد بدون نظر: {commentStats.neutralPercentage.toFixed(0)}%
                   </Title>
                 </div>
               </div>
 
               <div className="w-full">
                 <Tabs defaultActiveKey="1" centered>
-                  <TabPane tab="OtherSellers" key="1">
+                  <TabPane tab="فروشندگان" key="1">
                     <div className="p-4 max-h-[480px] overflow-y-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
                       {rowData &&
                         rowData.otherSellers.map((seller, index) => (
@@ -355,7 +387,7 @@ const ProductDetail = ({ visible, onClose, productID, rowData }) => {
                         ))}
                     </div>
                   </TabPane>
-                  <TabPane tab="Comments" key="2">
+                  <TabPane tab="نظرات" key="2">
                     <div className="p-4">
                       <div
                         className="border p-4 rounded-md shadow-md bg-white"

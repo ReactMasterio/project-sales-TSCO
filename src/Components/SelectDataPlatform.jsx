@@ -6,12 +6,12 @@ const SelectDataPlatform = () => {
     <div>
       <Select
         size="large"
-        defaultValue="Digikala.com"
+        defaultValue="دیجیکالا"
         style={{ width: 200 }}
         onChange=""
         options={[
-          { value: "digikala", label: "digikala.com" },
-          { value: "torob", label: "torob.com" },
+          { value: "digikala", label: "دیجیکالا" },
+          { value: "torob", label: "ترب" },
         ]}
       />
     </div>

@@ -1,7 +1,19 @@
+@import url('./fonts/font.css');
+*{
+    font-family: 'Yekan' !important
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+.ant-table {
+    direction: rtl;
+}
+
 :where(.css-dev-only-do-not-override-txh9fw).ant-btn-primary{
+    background-color: #1677ff !important;
+}
+.ant-btn-primary {
     background-color: #1677ff !important;
 }

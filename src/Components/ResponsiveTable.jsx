@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef } from "react";
-import qs from "qs";
-import { Table } from "antd";
-import axios, { CancelToken, isCancel } from "axios";
+import { Table, FloatButton } from "antd";
 import ProductDetail from "./ProductDetail";
+import axios from "axios";
+import ErrorCode503 from "./ErrorCode503";
+import * as XLSX from "xlsx"; // Import the xlsx library
+import { FileExcelOutlined } from "@ant-design/icons";
 
 const toPersianDigits = (input) => {
   const persianDigits = ["۰", "۱", "۲", "۳", "۴", "۵", "۶", "۷", "۸", "۹"];
@@ -24,7 +26,7 @@ const toPersianDigits = (input) => {
 
 const columns = [
   {
-    title: "image",
+    title: "عکس",
     dataIndex: "imageSource",
     key: "imageSource",
     render: (imageSource) => (
@@ -33,15 +35,13 @@ const columns = [
     width: "6%",
   },
   {
-    title: "Product Name",
+    title: "نام کالا",
     dataIndex: "productName",
-    sorter: true,
-    width: "25%",
+    width: "15%",
   },
   {
-    title: "Company Price",
+    title: "قیمت شرکت",
     dataIndex: "companyPrice",
-    sorter: true,
     width: "10%",
     render: () => (
       <p dir="rtl" className="text-center">
@@ -50,9 +50,8 @@ const columns = [
     ),
   },
   {
-    title: "Website Price",
+    title: "قیمت وبسایت",
     dataIndex: "productPrice",
-    sorter: true,
     width: "10%",
     render: (productPrice) => (
       <p dir="rtl" className="text-center">
@@ -61,25 +60,22 @@ const columns = [
     ),
   },
   {
-    title: "Rating",
+    title: "رتبه",
     dataIndex: "rating",
-    sorter: true,
     width: "5%",
   },
   {
-    title: "Votes",
+    title: "تعداد آرا",
     dataIndex: "productVotes",
-    sorter: true,
     width: "5%",
   },
   {
-    title: "Comments",
+    title: "نظرات",
     dataIndex: "productComments",
-    sorter: true,
     width: "5%",
   },
   {
-    title: "Product Link",
+    title: "صفحه کالا",
     dataIndex: "productLink",
     render: (productLink) => (
       <a href={productLink} target="_blank" rel="noopener noreferrer">
@@ -89,18 +85,18 @@ const columns = [
     width: "10%",
   },
   {
-    title: "Product ID",
+    title: "آیدی کالا",
     dataIndex: "productID",
-    render: (productID) => <a>{productID}</a>,
+    render: (productID) => <p>{productID}</p>,
     width: "10%",
   },
   {
-    title: "Seller Warranty",
+    title: "گارانتی فروشنده",
     dataIndex: "productWarranty",
     width: "15%",
   },
   {
-    title: "Seller Name",
+    title: "نام فروشنده",
     dataIndex: "sellerName",
     width: "15%",
   },
@@ -119,8 +115,17 @@ const extractUniqueCategories = (data) => {
   ];
   return uniqueCategories;
 };
+const extractUniqueSellers = (data) => {
+  const uniqueSellers = [...new Set(data.map((item) => item.sellerName))];
+  return uniqueSellers;
+};
 
-const ResponsiveTable = ({ searchValue, filters, onCategoryChange }) => {
+const ResponsiveTable = ({
+  searchValue,
+  filters,
+  onCategoryChange,
+  onSellersChange,
+}) => {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [initialLoad, setInitialLoad] = useState(true); // Add this state
@@ -159,6 +164,36 @@ const ResponsiveTable = ({ searchValue, filters, onCategoryChange }) => {
     current: 1,
     pageSize: 6,
   });
+
+  const exportToExcel = () => {
+    // Create a new workbook
+    const wb = XLSX.utils.book_new();
+    // Convert your table data to an array of arrays
+    const dataForExcel = data.map((item) => [
+      item.imageSource, // Add image source column
+      item.productName,
+      toPersianDigits(item.companyPrice), // Convert and add companyPrice
+      toPersianDigits(item.productPrice), // Convert and add productPrice
+      item.rating,
+      item.productVotes,
+      item.productComments,
+      item.productLink,
+      item.productID,
+      item.productWarranty,
+      item.sellerName,
+    ]);
+
+    const headers = columns.map((column) => column.title);
+    // Create a worksheet with your data
+    const ws = XLSX.utils.aoa_to_sheet([
+      headers, // Include column headers
+      ...dataForExcel,
+    ]);
+    // Add the worksheet to the workbook
+    XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
+    // Save the workbook as an Excel file
+    XLSX.writeFile(wb, "table_data.xlsx");
+  };
 
   // Create an AbortController and signal for each fetch request
   const [abortControllers, setAbortControllers] = useState([]);
@@ -209,9 +244,6 @@ const ResponsiveTable = ({ searchValue, filters, onCategoryChange }) => {
       pageSize: prevPageSize,
     });
 
-    console.log("previous : ", prevPagination.current);
-    console.log("changed To : ", current);
-
     // Cancel ongoing requests from the previous pagination
     abortControllers.forEach((controller) => {
       controller.abort();
@@ -224,9 +256,24 @@ const ResponsiveTable = ({ searchValue, filters, onCategoryChange }) => {
     // Add the new AbortController to the array
     setAbortControllers([...abortControllers, newAbortController]);
 
+    let allFetchedComments;
+
+    try {
+      const fetchedComments = await fetch(
+        `http://localhost:3020/get-all-comment-stats`,
+        { signal: newSignal }
+      );
+      if (fetchedComments.status === 200) {
+        allFetchedComments = await fetchedComments.json();
+        console.log(" Fetched Comments IDs", allFetchedComments);
+      }
+    } catch (error) {
+      console.log(error);
+    }
+
     try {
       const response = await fetch(
-        "http://87.107.104.221:3020/get-product-ids",
+        "http://localhost:3020/get-product-ids",
         { signal: newSignal } // Pass the signal to the fetch request
       );
 
@@ -241,7 +288,7 @@ const ResponsiveTable = ({ searchValue, filters, onCategoryChange }) => {
         console.log("Table IDs : ", currentIds);
 
         const nonFetchedIds = currentIds.filter(
-          (currentId) => !allProductIds.includes(currentId)
+          (currentId) => !allFetchedComments.includes(currentId)
         );
 
         console.log("Non-Fetched IDs : ", nonFetchedIds);
@@ -251,11 +298,11 @@ const ResponsiveTable = ({ searchValue, filters, onCategoryChange }) => {
         } else {
           const updatedStatsArray = [];
 
-          for (const currentId of nonFetchedIds) {
+          /* for (const currentId of nonFetchedIds) {
             if (!initialLoad || !fetchedStatsMap.has(currentId)) {
               const updatedStats = await fetchCommentsAndStats(
                 currentId,
-                allProductIds,
+                allFetchedComments,
                 newSignal
               );
               updatedStatsArray.push(updatedStats);
@@ -263,7 +310,7 @@ const ResponsiveTable = ({ searchValue, filters, onCategoryChange }) => {
             } else {
               updatedStatsArray.push(fetchedStatsMap.get(currentId));
             }
-          }
+          } */
 
           setFetchedIds([...nonFetchedIds]);
         }
@@ -280,37 +327,30 @@ const ResponsiveTable = ({ searchValue, filters, onCategoryChange }) => {
     }
   };
 
-  useEffect(() => {
-    // Fetch the initial data and set it as the original data
-    fetchInitialData();
-  }, []);
-
   // Function to fetch initial data and set it as originalData
   const fetchInitialData = () => {
-    setLoading(true);
-    fetch(
-      `http://87.107.104.221:3000/api/products`
-    )
+    fetch(`http://localhost:3000/api/products`)
       .then((res) => res.json())
       .then((results) => {
-        setData(results);
-        setOriginalData(results); // Set the original data here
-        // Extract unique productCategory values and pass to parent
-        const uniqueCategories = extractUniqueCategories(results);
-        onCategoryChange(uniqueCategories);
-
-        setTableParams({
-          ...tableParams,
-          pagination: {
-            ...tableParams.pagination,
-            total: results.totalCount,
-          },
-        });
+        if (!results || results.length === 0) {
+          setInitialLoad(false); // Update initialLoad state
+        } else {
+          setData(results);
+          setOriginalData(results);
+          const uniqueCategories = extractUniqueCategories(results);
+          onCategoryChange(uniqueCategories);
+          const uniqueSellers = extractUniqueSellers(results);
+          onSellersChange(uniqueSellers);
+          setLoading(true);
+        }
+      })
+      .catch((error) => {
+        setInitialLoad(false); // Update initialLoad state
         setLoading(false);
+        console.error("Error fetching initial data:", error);
       });
   };
   useEffect(() => {
-    // Filter the data based on the searchValue
     let filteredData = originalData;
 
     if (searchValue.toLowerCase() !== "") {
@@ -321,15 +361,50 @@ const ResponsiveTable = ({ searchValue, filters, onCategoryChange }) => {
       );
     }
 
-    // Apply category filter if it's selected
-    if (filters.category) {
+    if (filters.category && filters.category !== "all") {
       filteredData = filteredData.filter(
         (item) => item.productCategory === filters.category
       );
     }
 
+    if (filters.price === "az" && filters.price !== "all") {
+      const sortedData = [...filteredData].sort(
+        (a, b) => a.productPrice - b.productPrice
+      );
+      filteredData = sortedData;
+    } else if (filters.price === "za" && filters.price !== "all") {
+      const sortedData = [...filteredData].sort(
+        (a, b) => b.productPrice - a.productPrice
+      );
+      filteredData = sortedData;
+    }
 
-    // Update the data state with the filtered data
+    if (filters.rate === "az" && filters.rate !== "all") {
+      const sortedData = [...filteredData].sort((a, b) => a.rating - b.rating);
+      filteredData = sortedData;
+    } else if (filters.rate === "za" && filters.rate !== "all") {
+      const sortedData = [...filteredData].sort((a, b) => b.rating - a.rating);
+      filteredData = sortedData;
+    }
+
+    if (filters.comments === "az" && filters.comments !== "all") {
+      const sortedData = [...filteredData].sort(
+        (a, b) => a.productComments - b.productComments
+      );
+      filteredData = sortedData;
+    } else if (filters.comments === "za" && filters.comments !== "all") {
+      const sortedData = [...filteredData].sort(
+        (a, b) => b.productComments - a.productComments
+      );
+      filteredData = sortedData;
+    }
+
+    if (filters.seller && filters.seller !== "all") {
+      filteredData = filteredData.filter(
+        (item) => item.sellerName === filters.seller
+      );
+    }
+
     setData(filteredData);
   }, [searchValue, originalData, filters]);
 
@@ -380,7 +455,7 @@ const ResponsiveTable = ({ searchValue, filters, onCategoryChange }) => {
         }
 
         const pageResponse = await fetch(
-          `http://87.107.104.221:3002/api/product/${productID}/comments/?page=${page}`,
+          `http://localhost:3002/api/product/${productID}/comments/?page=${page}`,
           { signal: signal }
         );
 
@@ -476,7 +551,7 @@ const ResponsiveTable = ({ searchValue, filters, onCategoryChange }) => {
       };
 
       const postResponse = await axios.post(
-        `http://87.107.104.221:3020/save-stats`,
+        `http://localhost:3020/save-stats`,
         JSON.stringify(updatedStats),
         {
           headers: {
@@ -504,26 +579,36 @@ const ResponsiveTable = ({ searchValue, filters, onCategoryChange }) => {
 
   return (
     <div className="w-full">
-      <Table
-        columns={columns}
-        rowKey={(record) => record.productID}
-        dataSource={data}
-        pagination={tableParams.pagination}
-        loading={loading}
-        onChange={
-          (pagination) =>
-            handlePaginationChange(pagination.current, pagination.pageSize) // Update this line
-        }
-        onRow={(record) => ({
-          onClick: () => showModal(record),
-        })}
-      />
-      <ProductDetail
-        visible={modalVisible}
-        onClose={hideModal}
-        productID={selectedProductID}
-        rowData={selectedRowData}
-      />
+      {initialLoad ? (
+        <>
+          <Table
+            columns={columns}
+            rowKey={(record) => record.productID}
+            dataSource={data}
+            pagination={tableParams.pagination}
+            loading={loading}
+            onChange={(pagination) =>
+              handlePaginationChange(pagination.current, pagination.pageSize)
+            }
+            onRow={(record) => ({
+              onClick: () => showModal(record),
+            })}
+          />
+          <FloatButton
+            type="primary"
+            onClick={exportToExcel}
+            tooltip={<div>دریافت اطلاعات در اکسل</div>}
+          />
+          <ProductDetail
+            visible={modalVisible}
+            onClose={hideModal}
+            productID={selectedProductID}
+            rowData={selectedRowData}
+          />
+        </>
+      ) : (
+        <ErrorCode503 message={"دریافت داده ابتدایی ناموفق بود"} />
+      )}
     </div>
   );
 };

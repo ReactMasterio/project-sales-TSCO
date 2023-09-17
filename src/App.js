@@ -1,17 +1,24 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Auth from "./Components/Auth";
-import Main from './Components/Main'
+import Main from "./Components/Main";
+import { UpdateModeProvider } from "./updateModContext";
+import Updating from "./Components/Updating";
+import axios from "axios";
 
 const App = () => {
-  const [isAuthenticated,setIsAuthenticated] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   return (
     <div>
-      {isAuthenticated ? (
-        <Main />
-      ) : (
-        <Auth onAuthSuccess={() => setIsAuthenticated(true)} />
-      )}
+      <React.StrictMode>
+        <UpdateModeProvider>
+          {isAuthenticated ? (
+            <Main />
+          ) : (
+            <Auth onAuthSuccess={() => setIsAuthenticated(true)} />
+          )}
+        </UpdateModeProvider>
+      </React.StrictMode>
     </div>
   );
 };
