@@ -60,7 +60,7 @@ const columns = [
     ),
   },
   {
-    title: "رتبه",
+    title: "امتیاز دیجی کالا",
     dataIndex: "rating",
     width: "5%",
   },
@@ -125,6 +125,7 @@ const ResponsiveTable = ({
   filters,
   onCategoryChange,
   onSellersChange,
+  lastUpdate,
 }) => {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -249,82 +250,6 @@ const ResponsiveTable = ({
       controller.abort();
     });
 
-    // Create a new AbortController for the current request
-    const newAbortController = new AbortController();
-    const newSignal = newAbortController.signal;
-
-    // Add the new AbortController to the array
-    setAbortControllers([...abortControllers, newAbortController]);
-
-    let allFetchedComments;
-
-    try {
-      const fetchedComments = await fetch(
-        `http://localhost:3020/get-all-comment-stats`,
-        { signal: newSignal }
-      );
-      if (fetchedComments.status === 200) {
-        allFetchedComments = await fetchedComments.json();
-        console.log(" Fetched Comments IDs", allFetchedComments);
-      }
-    } catch (error) {
-      console.log(error);
-    }
-
-    try {
-      const response = await fetch(
-        "http://localhost:3020/get-product-ids",
-        { signal: newSignal } // Pass the signal to the fetch request
-      );
-
-      if (response.status === 200) {
-        const allProductIds = await response.json();
-        console.log("all the IDs from JSON : ", allProductIds);
-
-        const currentIds = data
-          .slice((current - 1) * pageSize, current * pageSize)
-          .map((item) => item.productID);
-
-        console.log("Table IDs : ", currentIds);
-
-        const nonFetchedIds = currentIds.filter(
-          (currentId) => !allFetchedComments.includes(currentId)
-        );
-
-        console.log("Non-Fetched IDs : ", nonFetchedIds);
-
-        if (nonFetchedIds.length === 0) {
-          // No non-fetched IDs, so skip the fetching logic
-        } else {
-          const updatedStatsArray = [];
-
-          /* for (const currentId of nonFetchedIds) {
-            if (!initialLoad || !fetchedStatsMap.has(currentId)) {
-              const updatedStats = await fetchCommentsAndStats(
-                currentId,
-                allFetchedComments,
-                newSignal
-              );
-              updatedStatsArray.push(updatedStats);
-              fetchedStatsMap.set(currentId, updatedStats);
-            } else {
-              updatedStatsArray.push(fetchedStatsMap.get(currentId));
-            }
-          } */
-
-          setFetchedIds([...nonFetchedIds]);
-        }
-      } else {
-        console.error("Failed to fetch product IDs.");
-      }
-    } catch (error) {
-      if (error.name === "AbortError") {
-        console.log("Request canceled due to new pagination.");
-        return;
-      }
-    } finally {
-      setLoading(false);
-    }
   };
 
   // Function to fetch initial data and set it as originalData
@@ -341,7 +266,7 @@ const ResponsiveTable = ({
           onCategoryChange(uniqueCategories);
           const uniqueSellers = extractUniqueSellers(results);
           onSellersChange(uniqueSellers);
-          setLoading(true);
+          //setLoading(true);
         }
       })
       .catch((error) => {
@@ -410,8 +335,9 @@ const ResponsiveTable = ({
 
   useEffect(() => {
     // Fetch the initial data
+    //setLoading(true);
     fetchInitialData();
-  }, [JSON.stringify(tableParams.pagination)]);
+  }, [JSON.stringify(tableParams.pagination), lastUpdate]);
 
   useEffect(() => {
     // Define the function to fetch data and handle pagination
@@ -607,7 +533,7 @@ const ResponsiveTable = ({
           />
         </>
       ) : (
-        <ErrorCode503 message={"دریافت داده ابتدایی ناموفق بود"} />
+        <ErrorCode503 message={"داده ای برای نمایش وجود ندارد"} />
       )}
     </div>
   );

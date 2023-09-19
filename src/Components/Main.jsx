@@ -3,7 +3,7 @@ import SelectDataPlatform from "./SelectDataPlatform";
 import Search from "./Search";
 import Filters from "./Filters";
 import ResponsiveTable from "./ResponsiveTable";
-import { Button } from "antd";
+import { Button, notification } from "antd";
 import axios from "axios";
 import Updating from "./Updating";
 
@@ -16,38 +16,77 @@ const Main = () => {
   const [resetSellers, setResetSellers] = useState(false); // Add this state variable
   const [resetCategories, setResetCategories] = useState(false); // Add this state variable
 
-  const [isWebsiteUpdating, setIsWebsiteUpdating] = useState(false);
+  const [isUpdateMode, setIsUpdateMode] = useState(false);
+  const [updateMessage, setUpdateMessage] = useState(""); // State to store the update message
+  const [lastUpdate, setLastUpdate] = useState(null);
+  const [notificationShown, setNotificationShown] = useState(false);
 
-  const handleUpdateState = async () => {
-    try {
-      const response = await axios.get(
-        "http://localhost:3003/api/is-update-mode"
-      );
-      const isUpdateModeValue = response.data.isUpdateMode;
-
-      setIsWebsiteUpdating(isUpdateModeValue); // Set the value in state
-    } catch (error) {
-      // Handle any errors that occur during the GET request
-      console.error("Error while getting update mode:", error);
-    }
+  const showUpdateNotification = (lastUpdateValue) => {
+    notification.info({
+      message: "اطلاعات بروزرسانی شده اند.",
+      description: `اطلاعات این صفحه بروز شده است. آخرین آپدیت ${lastUpdateValue}`,
+      duration: 5, // Duration in seconds for the notification to be visible
+    });
   };
 
   useEffect(() => {
-    handleUpdateState();
+    const fetchIsUpdateMode = async () => {
+      try {
+        const response = await axios.get(
+          "http://localhost:3003/api/is-update-mode"
+        );
+        const isUpdateModeValue = response.data.isUpdateMode;
+        setIsUpdateMode(isUpdateModeValue);
 
-    // Use setInterval to periodically fetch the update mode status (every minute)
-    const updateInterval = setInterval(() => {
-      handleUpdateState();
-    }, 1 * 60 * 1000); // 60000 milliseconds = 1 minute
+        const lastUpdateResponse = await axios.get(
+          "http://localhost:3004/api/is-server-config"
+        );
+        const lastUpdateValue = lastUpdateResponse.data.lastUpdateValue;
 
-    // Clean up the interval when the component unmounts
-    return () => {
-      clearInterval(updateInterval);
+        if (lastUpdateValue !== null && lastUpdateValue !== lastUpdate) {
+          // If lastUpdateValue has changed, show the notification
+          console.log(
+            "lastUpdateValue : ",
+            lastUpdateValue,
+            "lastValue : ",
+            lastUpdate
+          );
+          showUpdateNotification(lastUpdateValue);
+        } else {
+          console.log("lastUpdateValue : ", lastUpdateValue);
+        }
+
+        setLastUpdate(lastUpdateValue);
+      } catch (error) {
+        console.error("Error while getting update mode:", error);
+      }
     };
-  }, []);
+
+    const pollingInterval = 10000;
+    const intervalId = setInterval(fetchIsUpdateMode, pollingInterval);
+
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, [lastUpdate]);
+
+  useEffect(() => {
+    const fetchInitialLastUpdate = async () => {
+      try {
+        const lastUpdateResponse = await axios.get(
+          "http://localhost:3004/api/is-server-config"
+        );
+        const lastUpdateValue = lastUpdateResponse.data.lastUpdateValue;
+        setLastUpdate(lastUpdateValue);
+      } catch (error) {
+        console.error("Error while fetching initial lastUpdate:", error);
+      }
+    };
+
+    fetchInitialLastUpdate(); // Fetch initial lastUpdate when the component mounts
+  }, []); // Empty dependency array ensures this runs only once
 
 
-  console.log(categories);
   const handleCategoryChange = (uniqueCategories) => {
     setCategories(uniqueCategories);
   };
@@ -61,10 +100,10 @@ const Main = () => {
   };
 
   const handleClearFilters = () => {
-    setResetFilters(true); // Set resetFilters to true
-    setResetSellers(true); // Set resetSellers to true
-    setResetCategories(true); // Set resetCategories to true
-    setSelectedFilters({}); // Clear selectedFilters
+    setResetFilters(true);
+    setResetSellers(true);
+    setResetCategories(true);
+    setSelectedFilters({});
   };
 
   return (
@@ -98,16 +137,20 @@ const Main = () => {
           </Button>
         </div>
         <div className="w-full">
+          {lastUpdate && (
+            <p className="mx-4 text-gray-400">آخرین آپدیت ساعت {lastUpdate}</p>
+          )}
           <div className="bg-gray-50 p-4">
-            {!isWebsiteUpdating ? (
+            {!isUpdateMode ? (
               <ResponsiveTable
-              searchValue={searchValue}
-              filters={selectedFilters}
-              onCategoryChange={handleCategoryChange}
-              onSellersChange={handleSellersChange}
-            />
+                searchValue={searchValue}
+                filters={selectedFilters}
+                onCategoryChange={handleCategoryChange}
+                onSellersChange={handleSellersChange}
+                lastUpdate={lastUpdate}
+              />
             ) : (
-              <Updating message={"وبسایت درحال دریافت اطلاعات است"}/>
+              <Updating message={"وبسایت درحال دریافت اطلاعات است"} />
             )}
           </div>
         </div>

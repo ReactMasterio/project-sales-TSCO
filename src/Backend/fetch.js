@@ -13,6 +13,7 @@ let previousHour = null;
 let lastUpdate = null;
 console.log("updateMode = false");
 let isUpdateMode = false;
+let message = "";
 
 const DATA_DIR = "DB"; // Replace with the actual path
 
@@ -39,7 +40,7 @@ class ApiService {
     let listOfProducts = [];
     try {
       const pager = await this.productCount(brandName);
-      for (let i = pager.current_page; i <= /* pager.total_pages */ 2; i++) {
+      for (let i = pager.current_page; i <= pager.total_pages; i++) {
         console.log(`Fetching products - Page ${i}`);
         console.log(listOfProducts.length);
         const fetchModule = await import("node-fetch");
@@ -50,6 +51,9 @@ class ApiService {
 
         const data = await response.json();
         listOfProducts.push(...data.data.products);
+
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+
         if (i >= pager.total_pages && i >= pager.current_page + 1) {
           break;
         }
@@ -215,11 +219,11 @@ async function getProductsDataFilePath() {
 
   return path.join(
     DATA_DIR,
-    String(year), 
+    String(year), // Ensure year is a string
     "PRODUCTS_DATA",
-    String(month), 
-    String(day),
-    String(hour), 
+    String(month), // Ensure month is a string
+    String(day), // Ensure day is a string
+    String(hour), // Ensure hour is a string
     "API_DATA.json"
   );
 }
@@ -278,7 +282,9 @@ async function getCurrentTimeInTehran() {
 
 async function fetchProductIds() {
   try {
-    const response = await axios.get(`http://localhost:3020/get-product-ids`); // Replace with the actual URI
+    const response = await axios.get(
+      `http://localhost:3020/get-product-ids`
+    ); // Replace with the actual URI
     const productIds = response.data;
     return productIds;
   } catch (error) {
@@ -449,27 +455,46 @@ process.on("SIGINT", async () => {
   process.exit(2); // Exit the script
 });
 
-const setWebsiteUpdateStat = async (state) => {
+const setWebsiteUpdateStat = async (state, notification) => {
   await axios.post("http://localhost:3003/api/set-update-mode", {
     value: state,
+    notification: notification, // Pass the notification message
   });
 };
 
 let intervalStartTime = Date.now(); // Record the start time
 let intervalId = null; // Variable to store the interval ID
 
+
+
+async function sendLastUpdateToServer(lastUpdateValue) {
+  try {
+    const response = await axios.post(
+      "http://localhost:3004/api/set-server-config",
+      {
+        lastUpdate: lastUpdateValue,
+      }
+    );
+    console.log("LastUpdate sent to server:", lastUpdateValue);
+  } catch (error) {
+    console.error("Error sending LastUpdate to server:", error);
+  }
+}
+
+let isExecuting = false; // Variable to track if the function is already executing
+
 // Function to start the interval
 function startInterval() {
-  intervalId = setInterval(executeAfterInterval, 1 * 1000);
+  intervalId = setInterval(executeAfterInterval, 1 * 60 * 1000);
 }
 
-// Function to stop the interval
-function stopInterval() {
-  clearInterval(intervalId);
-  intervalId = null;
-}
+async function executeAfterInterval() {
+  // Check if the function is already executing, if so, return immediately
+  if (isExecuting) {
+    console.log("Function is already executing. Skipping interval.");
+    return;
+  }
 
-/* async function executeAfterInterval() {
   const currentTimeInTehran = await getCurrentTimeInTehran();
 
   if (currentTimeInTehran === null) {
@@ -479,99 +504,77 @@ function stopInterval() {
 
   const currentHour = currentTimeInTehran.hour;
 
-  // Check if it's within the desired time range (5 am to 11 pm)
-  if (currentHour >= 5 && currentHour <= 23) {
-    console.log("Current Hour:", currentHour);
-    console.log("Previous Hour:", previousHour);
+  // Check if it's within the desired time range (5 am to 11 pm) and if the current hour is greater than the previous hour
+  if (previousHour ===null){
+    isExecuting = true; // Set the flag to indicate execution
+    const apiService = new ApiService();
+    try {
+      previousHour === null ? (isUpdateMode = true) : (isUpdateMode = false);
+      setWebsiteUpdateStat(isUpdateMode, message);
+      const listOfProducts = await apiService.fetchCombinedDataAndSaveToFile(
+        "tsco"
+      ); // Wait for this to complete
 
-    if (previousHour === null || currentHour > previousHour) {
-      const apiService = new ApiService();
-      try {
-        // Fetch all products and save them
-        if (previousHour === null) {
-          isUpdateMode = true;
-        }
-        setWebsiteUpdateStat(isUpdateMode);
+      const IDs = listOfProducts.map((product) => product.id);
 
-        const listOfProducts = await apiService.fetchCombinedDataAndSaveToFile(
-          "tsco"
-        ); // Wait for this to complete
+      // Update the previousHour
+      previousHour = currentHour;
 
-        const IDs = listOfProducts.map((product) => product.id);
-        console.log(IDs);
+      // Update lastUpdate to the current hour
+      lastUpdate = currentHour;
 
-        // Update the previousHour
-        previousHour = currentHour;
-
-        // Update lastUpdate to the current hour
-        lastUpdate = currentHour;
-
-        // After fetching listOfProducts
+      // After fetching listOfProducts
+      console.log("currentHour in null block" , currentHour, "the type of it", typeof(currentHour));
+      if (currentHour === "04") {
         await executeFetchCommentsAndStats(IDs);
-        isUpdateMode = false;
-        setWebsiteUpdateStat(isUpdateMode);
-
-        // Stop the interval
-        stopInterval();
-
-        // Start the interval again
-        startInterval();
-      } catch (error) {
-        console.error("Error while fetching and saving data:", error);
-        // Restart the interval even if there's an error
-        if (intervalId === null) {
-          startInterval();
-        }
-      } finally {
-        // Calculate elapsed time
-        const elapsedTime = Date.now() - intervalStartTime;
-        console.log(`Interval completed in ${elapsedTime} milliseconds.`);
       }
+
+      isUpdateMode = false;
+      setWebsiteUpdateStat(isUpdateMode, message);
+
+      sendLastUpdateToServer(lastUpdate);
+    } catch (error) {
+      console.error("Error while fetching and saving data:", error);
+    } finally {
+      isExecuting = false; // Reset the flag
+      console.log("interval finished");
     }
-  }
-} */
+  }else if(currentHour >= 3 && currentHour <=19 && currentHour > previousHour){
+    isExecuting = true; // Set the flag to indicate execution
+    const apiService = new ApiService();
+    try {
+      const listOfProducts = await apiService.fetchCombinedDataAndSaveToFile(
+        "tsco"
+      ); // Wait for this to complete
 
-async function executeAfterInterval() {
-  const currentTimeInTehran = await getCurrentTimeInTehran();
+      const IDs = listOfProducts.map((product) => product.id);
+      console.log(IDs);
 
-  if (currentTimeInTehran === null) {
-    console.error("Failed to fetch current time in Tehran. Skipping interval.");
-    return;
-  }
-  if (!isFetchingData) {
-    isFetchingData = true;
-    if (currentTimeInTehran.hour > 5 && currentTimeInTehran.hour < 23) {
-      if (
-        currentTimeInTehran.hour > previousHour ||
-        currentTimeInTehran.hour === null
-      ) {
-        previousHour === null ? (isUpdateMode = true) : (isUpdateMode = false);
-        const apiService = new ApiService();
+      // Update the previousHour
+      previousHour = currentHour;
 
-        const listOfProducts = await apiService.fetchCombinedDataAndSaveToFile(
-          "tsco"
-        );
+      // Update lastUpdate to the current hour
+      lastUpdate = currentHour;
 
-        const IDs = listOfProducts.map((product) => product.id);
+      // After fetching listOfProducts
+            console.log(
+              "currentHour in null block",
+              currentHour,
+              "the type of it",
+              typeof currentHour
+            );
 
+      if (currentHour === "04") {
         await executeFetchCommentsAndStats(IDs);
-
-        isUpdateMode = false;
-        isFetchingData = false;
-
-        previousHour = currentTimeInTehran.hour;
-        lastUpdate = currentTimeInTehran.hour;
-      } else {
-        currentTimeInTehran.hour > previousHour
-          ? console.log(`current hour is not passed`)
-          : console.log(`it is not the initial run of the server`);
       }
-    } else {
-      console.log(`is not passed 5am and it is not before 23 pm`);
-      isFetchingData = false;
+
+      sendLastUpdateToServer(lastUpdate);
+    } catch (error) {
+      console.error("Error while fetching and saving data:", error);
+    } finally {
+      isExecuting = false; // Reset the flag
+      console.log("interval finished");
     }
-  } else {
-    console.log(`is fetchin var is true`);
   }
 }
 

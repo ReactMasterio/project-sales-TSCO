@@ -6,6 +6,7 @@ import {
   MinusOutlined,
   LoadingOutlined,
 } from "@ant-design/icons";
+import axios from "axios";
 
 const { Title, Link, Text } = Typography;
 const { TabPane } = Tabs;
@@ -46,68 +47,34 @@ const ProductDetail = ({ visible, onClose, productID, rowData }) => {
     mostDislikedInfo: {},
   });
 
-useEffect(() => {
-  if (visible && rowData) {
-    // Check if rowData is available
-
-    // set Loading before fetching
-    setLoading(true);
-    try {
-      fetch(`http://localhost:3020/get-comment-stats/${productID}`)
-        .then(async (response) => {
-          if (response.status === 404) {
-            // Product not found, show notification
-            notification.error({
-              message: "Error",
-              description: "Product not found. Fetching comments...",
-            });
-          } else if (response.ok) {
-            return response.json();
-          } else {
-            throw new Error("An error occurred while fetching product data.");
-          }
-        })
-        .then((data) => {
-          // Check if rowData.productID exists in the data
-
-          if (productID === data.productID) {
-            console.log(data);
-            setCommentStats(data);
-            setLoading(false)
-          } else {
-            notification.error({
-              message: "Error",
-              description:
-                "Comments not Found",
-            });
-          }
-        })
-        .catch((error) => {
-          setLoading(false); // Set loading to false if there's an error during data fetching.
-          // Handle other errors, e.g., show a notification.
-          notification.error({
-            message: "Error",
-            description:
-              "An error occurred while fetching product data. Please try again!",
-          });
+  useEffect(() => {
+    if (visible && (rowData || productID)) {
+      try {
+        setLoading(true); // Set loading to true when modal is opened
+        axios
+          .get(`http://localhost:3020/get-comment-stats/${productID}`)
+          .then((response) => {
+            if (response) {
+              setLoading(false);
+              setCommentStats(response.data);
+            }
+          })
+          .catch((error) => {
+              fetchComments();
+          })
+          .finally(() => {});
+      } catch (error) {
+        notification.error({
+          message: "Error",
+          description: "دسترسی به API ناموفق بوده است",
         });
-    } catch (error) {
-      setLoading(false);
-      notification.error({
-        message: "Error",
-        description:
-          "An error occurred while fetching product data. Please try again!",
-      });
-      console.log("didn't find product-comments");
-      fetchComments();
+        // Set loading to false in case of error
+        setLoading(false);
+      }
     }
-  }
-}, [visible, rowData, productID]);
-
+  }, [visible, rowData, productID]);
 
   const fetchComments = async () => {
-    setLoading(true);
-
     try {
       const response = await fetch(
         `http://localhost:3002/api/product/${productID}/comments?page=1`
@@ -132,6 +99,7 @@ useEffect(() => {
         for (const comment of pageComments) {
           allComments.push(comment);
         }
+        await new Promise((resolve) => setTimeout(resolve, 1000));
       }
       let recommendedCount = 0;
       let notRecommendedCount = 0;
@@ -226,12 +194,19 @@ useEffect(() => {
         })
         .catch((error) => {
           console.error("Error saving stats:", error);
+        })
+        .finally(() => {
+          // Set loading to false after the request is completed
+          setLoading(false);
         });
 
       setCommentStats(updatedStats);
       setCommentData(allComments);
+      setLoading(false);
     } catch (error) {
       console.error("Error fetching data:", error);
+      // Set loading to false in case of error
+      setLoading(false);
     } finally {
       setLoading(false);
     }
@@ -245,12 +220,12 @@ useEffect(() => {
           footer={null}
           centered
           closable={false}
-          width={150}
+          width={200}
           className="flex justify-center align-middle items-center"
         >
-          <div>
+          <div className="flex items-center">
             <LoadingOutlined className="mr-2" />
-            Loading...
+            <span>...لطفا صبر کنید</span>
           </div>
         </Modal>
       ) : (
@@ -325,9 +300,7 @@ useEffect(() => {
                   </Title>
                 </div>
                 <div className="text-center inline-flex">
-                  <Title level={4}>
-                    بدون نظر: {commentStats.neutralCount}
-                  </Title>
+                  <Title level={4}>بدون نظر: {commentStats.neutralCount}</Title>
                 </div>
               </div>
               <div className="flex gap-8 w-full justify-center align-middle my-4">

@@ -13,20 +13,18 @@ const port = 3020;
 const ip = "localhost"; // Listen on all available network interfaces
 const DATA_DIR = path.join(__dirname, "DB");
 
-async function getCommentsDataFilePath() {
+async function getUsersDataFilePath() {
   const { year, month, day, hour } = await getCurrentTimeInTehran();
-  console.log("getCommentsDataFilePath called");
+  console.log("getUsersDataFilePath called");
 
   return path.join(
     DATA_DIR,
     String(year), // Ensure year is a string
-    "COMMENTS_DATA",
-    String(month), // Ensure month is a string
-    String(day), // Ensure day is a string
-    String(hour), // Ensure hour is a string
-    "COMMENTS_DATA.json"
+    "USERS", // Ensure hour is a string
+    "USERS.json"
   );
 }
+
 
 async function getCurrentTimeInTehran() {
   try {
@@ -83,6 +81,58 @@ async function getProductsDataFilePath() {
   );
 }
 
+async function getCommentsDataFilePathForCurrentDay() {
+  const currentTimeInTehran = await getCurrentTimeInTehran();
+
+  if (currentTimeInTehran === null) {
+    console.error("Failed to fetch current time in Tehran.");
+    return null;
+  }
+
+  // Get the current day, month, and year
+  const currentDay = currentTimeInTehran.day;
+  const currentMonth = currentTimeInTehran.month;
+  const currentYear = currentTimeInTehran.year;
+
+  // Create the file path for the current day's comments data
+  const filePath = path.join(
+    DATA_DIR,
+    String(currentYear),
+    "COMMENTS_DATA",
+    String(currentMonth),
+    String(currentDay),
+    "COMMENTS_DATA.json"
+  );
+
+  return filePath;
+}
+
+async function getCommentsDataFilePathForPrevDay() {
+  const currentTimeInTehran = await getCurrentTimeInTehran();
+
+  if (currentTimeInTehran === null) {
+    console.error("Failed to fetch current time in Tehran.");
+    return null;
+  }
+
+  // Get the current day, month, and year
+  const currentDay = currentTimeInTehran.day;
+  const currentMonth = currentTimeInTehran.month;
+  const currentYear = currentTimeInTehran.year;
+
+  // Create the file path for the current day's comments data
+  const filePath = path.join(
+    DATA_DIR,
+    String(currentYear),
+    "COMMENTS_DATA",
+    String(currentMonth),
+    String(currentDay - 1),
+    "COMMENTS_DATA.json"
+  );
+
+  return filePath;
+}
+
 function ensureFileAndDirectoryExists(filePath) {
   const directoryPath = path.dirname(filePath);
 
@@ -132,17 +182,14 @@ async function handleGetProductIds(req, res) {
 app.get("/get-comment-stats/:productID", async (req, res) => {
   try {
     const productID = parseInt(req.params.productID, 10);
-    const COMMENTS_DATA_FILE = await getCommentsDataFilePath();
-    const prevHourFilePath = await getCommentsDataFilePathForPrevHour();
-
-    let commentsData = [];
+    const COMMENTS_DATA_FILE = await getCommentsDataFilePathForCurrentDay(); // Use the current day's file path
 
     ensureFileAndDirectoryExists(COMMENTS_DATA_FILE);
     console.log(COMMENTS_DATA_FILE);
 
     let fileContents = "";
 
-    // Check if the current hour's file exists and is not empty
+    // Check if the current day's file exists and is not empty
     if (fs.existsSync(COMMENTS_DATA_FILE)) {
       const currentFileContents = fs.readFileSync(COMMENTS_DATA_FILE, "utf-8");
       if (
@@ -151,28 +198,32 @@ app.get("/get-comment-stats/:productID", async (req, res) => {
       ) {
         fileContents = currentFileContents;
       }
-    }
-
-    // Check if the current hour's file is empty or doesn't exist, then use the previous hour's data
-    if (!fileContents && fs.existsSync(prevHourFilePath)) {
-      const prevHourFileContents = fs.readFileSync(prevHourFilePath, "utf-8");
-      if (prevHourFileContents.trim() !== "") {
-        fileContents = prevHourFileContents;
+    } else {
+      const COMMENTS_DATA_FILE_PREV_DAY =
+        await getCommentsDataFilePathForPrevDay();
+      ensureFileAndDirectoryExists(COMMENTS_DATA_FILE_PREV_DAY);
+      const prevFileContents = fs.readFileSync(
+        COMMENTS_DATA_FILE_PREV_DAY,
+        "utf-8"
+      );
+      if (prevFileContents.trim() !== "" && prevFileContents !== "[]") {
+        fileContents = prevFileContents;
       }
     }
 
     if (fileContents.trim() !== "") {
-      commentsData = JSON.parse(fileContents);
-    }
-
-    if (commentsData) {
+      const commentsData = JSON.parse(fileContents);
       const comment = commentsData.find(
         (comment) => comment.productID === productID
       );
 
       if (comment) {
         res.status(200).json(comment);
+      } else {
+        res.status(404).json({ message: "404 - ID Not Found" });
       }
+    } else {
+      res.status(500).json({ message: "500 - ID not Found" });
     }
   } catch (error) {
     console.error("Error handling /get-comment-stats:", error);
@@ -182,9 +233,7 @@ app.get("/get-comment-stats/:productID", async (req, res) => {
   }
 });
 
-
-
-async function getCommentsDataFilePathForPrevHour() {
+async function getCommentsDataFilePathForPrevDay() {
   const currentTimeInTehran = await getCurrentTimeInTehran();
 
   if (currentTimeInTehran === null) {
@@ -192,88 +241,44 @@ async function getCommentsDataFilePathForPrevHour() {
     return null;
   }
 
-  // Calculate the previous hour
-  let prevHour = parseInt(currentTimeInTehran.hour) - 1;
-  const prevYear = currentTimeInTehran.year;
-  const prevMonth = currentTimeInTehran.month;
-  const prevDay = currentTimeInTehran.day;
+  // Calculate the previous day
+  let prevDay = parseInt(currentTimeInTehran.day) - 1;
+  let prevMonth = currentTimeInTehran.month;
+  let prevYear = currentTimeInTehran.year;
 
-  // Ensure the previous hour is within the valid range (0-23)
-  if (prevHour < 0) {
-    prevHour = 23; // Wrap around to the previous day's last hour
-    // Adjust other date components accordingly
-    // You may need to handle cases where the date changes to the previous day
-    // when the current hour is 0.
-    // For simplicity, this example assumes the same day.
+  // Handle cases where the previous day crosses into the previous month or year
+  if (prevDay < 1) {
+    prevMonth -= 1;
+    if (prevMonth < 1) {
+      prevMonth = 12; // Wrap around to December
+      prevYear -= 1; // Go to the previous year
+    }
+    // You may need more complex logic to handle different month lengths.
+    // This example assumes a simple case.
+    prevDay = 31; // Assuming each month has 31 days
   }
 
-  // Create the file path for the previous hour's comments data
+  // Create the file path for the previous day's comments data
   const filePath = path.join(
     DATA_DIR,
     String(prevYear),
     "COMMENTS_DATA",
     String(prevMonth),
     String(prevDay),
-    String(prevHour),
     "COMMENTS_DATA.json"
   );
 
   return filePath;
 }
 
-
-app.get("/get-all-comment-stats", async (req, res) => {
-  try {
-    const COMMENTS_DATA_FILE = await getCommentsDataFilePath();
-    const PREV_HOUR_COMMENTS_DATA_FILE =
-      await getCommentsDataFilePathForPrevHour();
-
-    let commentsData = [];
-
-    ensureFileAndDirectoryExists(COMMENTS_DATA_FILE);
-    console.log(COMMENTS_DATA_FILE);
-
-    // Check if the current data file exists
-    const currentFileContents = fs.readFileSync(COMMENTS_DATA_FILE, "utf-8");
-    if (currentFileContents.trim() !== "") {
-      commentsData = JSON.parse(currentFileContents);
-    } else {
-      // If the current data file doesn't exist, try the previous hour's data
-      if (PREV_HOUR_COMMENTS_DATA_FILE !== null) {
-        const prevHourFileContents = fs.readFileSync(
-          PREV_HOUR_COMMENTS_DATA_FILE,
-          "utf-8"
-        );
-        if (prevHourFileContents.trim() !== "") {
-          commentsData = JSON.parse(prevHourFileContents);
-        }
-      }
-    }
-
-    const fetchedComments = commentsData.map((item) => item.productID);
-
-    if (fetchedComments.length > 0) {
-      res.status(200).json(fetchedComments);
-    } else {
-      res.status(404).json({});
-    }
-  } catch (error) {
-    console.error("Error handling /get-all-comment-stats:", error);
-    res
-      .status(500)
-      .json({ error: "Internal Server Error", message: error.message });
-  }
-});
-
-
 app.post("/save-stats", async (req, res) => {
   try {
-    const COMMENTS_DATA_FILE = await getCommentsDataFilePath();
+    const COMMENTS_DATA_FILE = await getCommentsDataFilePathForCurrentDay(); // Use the current day's file path
     ensureFileAndDirectoryExists(COMMENTS_DATA_FILE);
 
+    // Read existing data from the file if it exists
     let fileContents = [];
 
-    // Read existing data from the file if it exists
     if (fs.existsSync(COMMENTS_DATA_FILE)) {
       try {
         fileContents = JSON.parse(fs.readFileSync(COMMENTS_DATA_FILE, "utf-8"));
@@ -289,14 +294,23 @@ app.post("/save-stats", async (req, res) => {
       }
     }
 
-    // Push the data from the request body into the existing data array
-    fileContents.push(req.body);
+    // Check if the req.body already exists in the comments data
+    const existingComment = fileContents.find(
+      (comment) => comment.productID === req.body.productID
+    );
 
-    // Write the updated data back to the file
-    const newDataJSON = JSON.stringify(fileContents, null, 2);
-    fs.writeFileSync(COMMENTS_DATA_FILE, newDataJSON);
+    if (!existingComment) {
+      // Add the req.body data if it doesn't exist
+      fileContents.push(req.body);
 
-    res.status(200).json({ message: "Data saved successfully" });
+      // Write the updated data back to the file
+      const newDataJSON = JSON.stringify(fileContents, null, 2);
+      fs.writeFileSync(COMMENTS_DATA_FILE, newDataJSON);
+      console.log(COMMENTS_DATA_FILE);
+      res.status(200).json({ message: "Data saved successfully" });
+    } else {
+      res.status(400).json({ message: "Comment already exists" });
+    }
   } catch (error) {
     console.error("Error handling /save-stats:", error);
     res
@@ -304,8 +318,6 @@ app.post("/save-stats", async (req, res) => {
       .json({ error: "Internal Server Error", message: error.message });
   }
 });
-
-
 
 // Server for fetching products
 const productsServer = express();
@@ -329,7 +341,7 @@ async function getProductsDataFilePathForPrevHour() {
 
   // Ensure the previous hour is within the valid range (0-23)
   if (prevHour < 0) {
-    prevHour = 23; 
+    prevHour = 23;
   }
 
   // Create the file path for the previous hour's data
@@ -345,7 +357,6 @@ async function getProductsDataFilePathForPrevHour() {
 
   return filePath;
 }
-
 
 productsServer.get("/api/products", async (req, res) => {
   try {
@@ -379,15 +390,13 @@ productsServer.get("/api/products", async (req, res) => {
     if (fileContents.trim() !== "") {
       res.json(JSON.parse(fileContents));
     } else {
-      res.json([]); // If no data is available, return an empty array
+      res.json(500).json({ error: "internal Error" });
     }
   } catch (error) {
     console.error("Error fetching products:", error);
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
-
-
 
 productsServer.listen(productsPort, ip, () => {
   console.log(`products Server is listening on ${ip}:${port}`);
@@ -430,18 +439,99 @@ const updateServerPort = 3003;
 updateServer.use(bodyParser.json());
 updateServer.use(cors());
 let isUpdateMode = false;
+let message = "";
 
 updateServer.post("/api/set-update-mode", (req, res) => {
-  const { value } = req.body;
+  const { value, notification } = req.body;
   isUpdateMode = value;
-  res.json({ message: "Update successful", isUpdateMode });
+  message = notification;
+  res.json({
+    message: `Update successful`,
+    isUpdateMode,
+    notification,
+  });
 });
 
 // Toggle the update mode state
 updateServer.get("/api/is-update-mode", (req, res) => {
-  res.json({ isUpdateMode });
+  res.json({ isUpdateMode, message });
 });
 
 updateServer.listen(updateServerPort, () => {
   console.log(`Server is listening on port ${updateServerPort}`);
+});
+
+const serverConfig = express();
+const serverConfigPort = 3004;
+
+serverConfig.use(bodyParser.json());
+serverConfig.use(cors());
+let lastUpdateValue;
+
+serverConfig.post("/api/set-server-config", (req, res) => {
+  const { lastUpdate } = req.body;
+  lastUpdateValue = lastUpdate;
+  res.json({
+    message: `Update successful`,
+    lastUpdateValue,
+  });
+});
+
+// Toggle the update mode state
+serverConfig.get("/api/is-server-config", (req, res) => {
+  res.json({ lastUpdateValue });
+});
+
+serverConfig.listen(serverConfigPort, () => {
+  console.log(`Server is listening on port ${updateServerPort}`);
+});
+
+const userServer = express();
+const userServerPort = 3005;
+
+userServer.use(bodyParser.json());
+userServer.use(cors());
+
+userServer.get("/api/is-user-exist/:number", async (req, res) => {
+  const number = req.params.number;
+
+  try {
+    const USERS_FILE_PATH = await getUsersDataFilePath(); // Call it here in an async context
+
+    // Read the user data from the file
+    const data = fs.readFileSync(USERS_FILE_PATH, "utf-8");
+
+    if (!data) {
+      res.status(500).json({
+        error: "Internal Server Error",
+        message: "Failed to read data file.",
+      });
+      return;
+    }
+
+    // Parse the JSON data
+    const userData = JSON.parse(data);
+
+    const matchedUser = userData.users.find((user) => user.number === number);
+
+    if (matchedUser) {
+      res.json(matchedUser);
+    } else {
+      res.status(403).json({
+        error: "Access Denied",
+        message: "User not found or access denied.",
+      });
+    }
+  } catch (error) {
+    console.error("Error reading data file:", error);
+    res.status(500).json({
+      error: "Internal Server Error",
+      message: "Error reading data file.",
+    });
+  }
+});
+
+
+userServer.listen(userServerPort, () => {
+  console.log(`user server is listening on port ${userServerPort}`);
 });

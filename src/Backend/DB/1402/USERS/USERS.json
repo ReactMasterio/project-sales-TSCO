@@ -1,0 +1,16 @@
+{
+    "users": [
+        {
+            "name": "Habib",
+            "number": "09306688810",
+            "accessType": "admin",
+            "actions": []
+        },
+        {
+            "name": "Mehdi Jahani",
+            "number": "09125632329",
+            "accessType": "manager",
+            "actions": []
+        }
+    ]
+}

@@ -3,7 +3,7 @@ import { Form, Input, Button, notification, message } from "antd";
 import logo from "../assets/logo.png";
 
 const Auth = ({ onAuthSuccess }) => {
-  const [form] = Form.useForm(); 
+  const [form] = Form.useForm();
 
   const onFinish = async (values) => {
     try {
@@ -13,12 +13,14 @@ const Auth = ({ onAuthSuccess }) => {
         message.success("Login Successful");
         onAuthSuccess();
 
+        sessionStorage.setItem("isAuthenticated", "true");
+
         form.resetFields();
-    } else {
+      } else {
         console.log("Authentication failed");
         notification.error({
-            message: "Authentication Failed",
-            description: "Wrong username or password. Please try again.",
+          message: "Authentication Failed",
+          description: "Wrong username or password. Please try again.",
         });
         form.resetFields();
       }
@@ -28,9 +30,7 @@ const Auth = ({ onAuthSuccess }) => {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center h-screen"
-      
-    >
+    <div className="flex flex-col items-center justify-center h-screen">
       <img src={logo} alt="Company Logo" style={{ width: "250px" }} />
       <Form
         name="normal_login"

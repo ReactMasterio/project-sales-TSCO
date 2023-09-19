@@ -6,7 +6,10 @@ import Updating from "./Components/Updating";
 import axios from "axios";
 
 const App = () => {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const isAuthenticatedFromStorage = sessionStorage.getItem("isAuthenticated");
+  const [isAuthenticated, setIsAuthenticated] = useState(
+    isAuthenticatedFromStorage === "true"
+  );
 
   return (
     <div>
