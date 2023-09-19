@@ -25,7 +25,6 @@ const Filters = ({
   const [rateValue, setRateValue] = useState("all");
   const [commentsValue, setCommentsValue] = useState("all");
   const [sellerValue, setSellerValue] = useState("all");
-  console.log(categories);
 
   useEffect(() => {
     if (resetFilters) {

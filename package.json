@@ -13,7 +13,6 @@
     "cors": "^2.8.5",
     "date-fns": "^2.30.0",
     "debounce": "^1.2.1",
-    "dotenv": "^16.3.1",
     "express": "^4.18.2",
     "http-proxy-middleware": "^2.0.6",
     "jalali-moment": "^3.3.11",
@@ -21,6 +20,7 @@
     "moment-jalaali": "^0.10.0",
     "moment-timezone": "^0.5.43",
     "node-fetch": "^3.3.2",
+    "os-browserify": "^0.3.0",
     "path": "^0.12.7",
     "path-browserify": "^1.0.1",
     "react": "^18.2.0",
@@ -61,6 +61,7 @@
     ]
   },
   "devDependencies": {
+    "dotenv": "^16.3.1",
     "gh-pages": "^6.0.0",
     "tailwindcss": "^3.3.3"
   }

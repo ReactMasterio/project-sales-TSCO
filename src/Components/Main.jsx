@@ -33,13 +33,13 @@ const Main = () => {
     const fetchIsUpdateMode = async () => {
       try {
         const response = await axios.get(
-          "http://localhost:3003/api/is-update-mode"
+          `http://${process.env.REACT_APP_SERVER_ADDRESS}:3003/api/is-update-mode`
         );
         const isUpdateModeValue = response.data.isUpdateMode;
         setIsUpdateMode(isUpdateModeValue);
 
         const lastUpdateResponse = await axios.get(
-          "http://localhost:3004/api/is-server-config"
+          `http://${process.env.REACT_APP_SERVER_ADDRESS}:3004/api/is-server-config`
         );
         const lastUpdateValue = lastUpdateResponse.data.lastUpdateValue;
 
@@ -74,7 +74,7 @@ const Main = () => {
     const fetchInitialLastUpdate = async () => {
       try {
         const lastUpdateResponse = await axios.get(
-          "http://localhost:3004/api/is-server-config"
+          `http://${process.env.REACT_APP_SERVER_ADDRESS}:3004/api/is-server-config`
         );
         const lastUpdateValue = lastUpdateResponse.data.lastUpdateValue;
         setLastUpdate(lastUpdateValue);

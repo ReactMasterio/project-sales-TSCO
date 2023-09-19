@@ -134,6 +134,7 @@ class ApiService {
       console.log("Fetching products by brand:", brandName);
       const startTime = new Date(); // Record start time
       console.log("Start Time:", startTime);
+
       // Use getProductsDataFilePath to get the dynamic file path
       const productsDataFilePath = await getProductsDataFilePath();
 
@@ -142,12 +143,10 @@ class ApiService {
 
       // Open the JSON file for writing in "write" mode (truncate existing data)
       const writeStream = fs.createWriteStream(productsDataFilePath);
+      writeStream.write("[\n"); // Start of the JSON array
 
       const listOfProducts = await this.fetchProductsByBrand(brandName);
       console.log("Total products fetched:", listOfProducts.length);
-
-      // Start the JSON array
-      writeStream.write("[\n");
 
       for (let i = 0; i < listOfProducts.length; i++) {
         const product = listOfProducts[i];
@@ -163,7 +162,7 @@ class ApiService {
             ratingValue
           );
 
-          // Convert the combinedProduct to JSON string and write it to the file
+          // Convert the combinedProduct to JSON string
           const jsonData = JSON.stringify(combinedProduct, null, 2);
 
           // Write the JSON object
@@ -174,7 +173,7 @@ class ApiService {
             writeStream.write(",");
           }
 
-          // Add a newline character
+          // Add a newline character if it's not the last product
           writeStream.write("\n");
         } else {
           // Handle the error case here, such as logging the error message
@@ -186,8 +185,8 @@ class ApiService {
         }
       }
 
-      // End the JSON array
-      writeStream.write("]");
+      // End of the JSON array
+      writeStream.write("]\n");
 
       // Close the write stream
       writeStream.end();
@@ -198,7 +197,7 @@ class ApiService {
       console.log(`Total time taken: ${elapsedTimeMinutes.toFixed(2)} minutes`);
       return listOfProducts;
     } catch (error) {
-      console.error(`Error processing data:`, error);
+      console.error("Error processing data:", error);
     }
   }
 }
@@ -228,15 +227,14 @@ async function getProductsDataFilePath() {
   );
 }
 async function getCommentsDataFilePath() {
-  const { year, month, day, hour } = await getCurrentTimeInTehran();
+  const { year, month, day } = await getCurrentTimeInTehran();
 
   return path.join(
     DATA_DIR,
-    String(year), // Ensure year is a string
+    String(year),
     "COMMENTS_DATA",
-    String(month), // Ensure month is a string
-    String(day), // Ensure day is a string
-    String(hour), // Ensure hour is a string
+    String(month),
+    String(day), 
     "COMMENTS_DATA.json"
   );
 }
@@ -282,9 +280,7 @@ async function getCurrentTimeInTehran() {
 
 async function fetchProductIds() {
   try {
-    const response = await axios.get(
-      `http://localhost:3020/get-product-ids`
-    ); // Replace with the actual URI
+    const response = await axios.get(`http://${process.env.REACT_APP_SERVER_ADDRESS}:3020/get-product-ids`); // Replace with the actual URI
     const productIds = response.data;
     return productIds;
   } catch (error) {
@@ -407,7 +403,7 @@ const fetchCommentsAndStats = async (productID) => {
 
     console.log(`saving... ${productID}`);
 
-    fetch(`http://localhost:3020/save-stats`, {
+    fetch(`http://${process.env.REACT_APP_SERVER_ADDRESS}:3020/save-stats`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -456,7 +452,7 @@ process.on("SIGINT", async () => {
 });
 
 const setWebsiteUpdateStat = async (state, notification) => {
-  await axios.post("http://localhost:3003/api/set-update-mode", {
+  await axios.post(`http://${process.env.REACT_APP_SERVER_ADDRESS}:3003/api/set-update-mode`, {
     value: state,
     notification: notification, // Pass the notification message
   });
@@ -465,12 +461,10 @@ const setWebsiteUpdateStat = async (state, notification) => {
 let intervalStartTime = Date.now(); // Record the start time
 let intervalId = null; // Variable to store the interval ID
 
-
-
 async function sendLastUpdateToServer(lastUpdateValue) {
   try {
     const response = await axios.post(
-      "http://localhost:3004/api/set-server-config",
+      `http://${process.env.REACT_APP_SERVER_ADDRESS}:3004/api/set-server-config`,
       {
         lastUpdate: lastUpdateValue,
       }
@@ -505,7 +499,7 @@ async function executeAfterInterval() {
   const currentHour = currentTimeInTehran.hour;
 
   // Check if it's within the desired time range (5 am to 11 pm) and if the current hour is greater than the previous hour
-  if (previousHour ===null){
+  if (previousHour === null) {
     isExecuting = true; // Set the flag to indicate execution
     const apiService = new ApiService();
     try {
@@ -523,23 +517,25 @@ async function executeAfterInterval() {
       // Update lastUpdate to the current hour
       lastUpdate = currentHour;
 
-      // After fetching listOfProducts
-      console.log("currentHour in null block" , currentHour, "the type of it", typeof(currentHour));
-      if (currentHour === "04") {
-        await executeFetchCommentsAndStats(IDs);
-      }
-
       isUpdateMode = false;
       setWebsiteUpdateStat(isUpdateMode, message);
 
       sendLastUpdateToServer(lastUpdate);
+
+      // After fetching listOfProducts
+      await executeFetchCommentsAndStats(IDs);
+      
     } catch (error) {
       console.error("Error while fetching and saving data:", error);
     } finally {
       isExecuting = false; // Reset the flag
       console.log("interval finished");
     }
-  }else if(currentHour >= 3 && currentHour <=19 && currentHour > previousHour){
+  } else if (
+    currentHour >= 3 &&
+    currentHour <= 19 &&
+    currentHour > previousHour
+  ) {
     isExecuting = true; // Set the flag to indicate execution
     const apiService = new ApiService();
     try {
@@ -557,14 +553,9 @@ async function executeAfterInterval() {
       lastUpdate = currentHour;
 
       // After fetching listOfProducts
-            console.log(
-              "currentHour in null block",
-              currentHour,
-              "the type of it",
-              typeof currentHour
-            );
 
-      if (currentHour === "04") {
+      const commentsDataFilePath = await getCommentsDataFilePath();
+      if (!fs.existsSync(commentsDataFilePath)) {
         await executeFetchCommentsAndStats(IDs);
       }
 

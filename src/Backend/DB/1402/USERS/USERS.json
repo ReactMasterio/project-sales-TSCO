@@ -1,13 +1,13 @@
 {
     "users": [
         {
-            "name": "Habib",
+            "name": "حبیب بهداروندی",
             "number": "09306688810",
             "accessType": "admin",
             "actions": []
         },
         {
-            "name": "Mehdi Jahani",
+            "name": "مهدی جهانی پور",
             "number": "09125632329",
             "accessType": "manager",
             "actions": []

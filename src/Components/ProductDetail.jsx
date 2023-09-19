@@ -52,7 +52,7 @@ const ProductDetail = ({ visible, onClose, productID, rowData }) => {
       try {
         setLoading(true); // Set loading to true when modal is opened
         axios
-          .get(`http://localhost:3020/get-comment-stats/${productID}`)
+          .get(`http://${process.env.REACT_APP_SERVER_ADDRESS}:3020/get-comment-stats/${productID}`)
           .then((response) => {
             if (response) {
               setLoading(false);
@@ -77,7 +77,7 @@ const ProductDetail = ({ visible, onClose, productID, rowData }) => {
   const fetchComments = async () => {
     try {
       const response = await fetch(
-        `http://localhost:3002/api/product/${productID}/comments?page=1`
+        `http://${process.env.REACT_APP_SERVER_ADDRESS}:3002/api/product/${productID}/comments?page=1`
       );
       const data = await response.json();
 
@@ -91,7 +91,7 @@ const ProductDetail = ({ visible, onClose, productID, rowData }) => {
           break;
         }
         const pageResponse = await fetch(
-          `http://localhost:3002/api/product/${productID}/comments/?page=${page}`
+          `http://${process.env.REACT_APP_SERVER_ADDRESS}:3002/api/product/${productID}/comments/?page=${page}`
         );
         const pageData = await pageResponse.json();
         const pageComments = pageData.data.comments;
@@ -176,7 +176,7 @@ const ProductDetail = ({ visible, onClose, productID, rowData }) => {
         mostDislikedInfo,
       };
 
-      fetch(`http://localhost:3020/save-stats`, {
+      fetch(`http://${process.env.REACT_APP_SERVER_ADDRESS}:3020/save-stats`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

@@ -254,7 +254,7 @@ const ResponsiveTable = ({
 
   // Function to fetch initial data and set it as originalData
   const fetchInitialData = () => {
-    fetch(`http://localhost:3000/api/products`)
+    fetch(`http://${process.env.REACT_APP_SERVER_ADDRESS}:3000/api/products`)
       .then((res) => res.json())
       .then((results) => {
         if (!results || results.length === 0) {
@@ -381,7 +381,7 @@ const ResponsiveTable = ({
         }
 
         const pageResponse = await fetch(
-          `http://localhost:3002/api/product/${productID}/comments/?page=${page}`,
+          `http://${process.env.REACT_APP_SERVER_ADDRESS}:3002/api/product/${productID}/comments/?page=${page}`,
           { signal: signal }
         );
 
@@ -477,7 +477,7 @@ const ResponsiveTable = ({
       };
 
       const postResponse = await axios.post(
-        `http://localhost:3020/save-stats`,
+        `http://${process.env.REACT_APP_SERVER_ADDRESS}:3020/save-stats`,
         JSON.stringify(updatedStats),
         {
           headers: {
@@ -502,6 +502,8 @@ const ResponsiveTable = ({
       return null;
     }
   };
+
+  console.log(process.env.REACT_APP_SERVER_ADDRESS);
 
   return (
     <div className="w-full">

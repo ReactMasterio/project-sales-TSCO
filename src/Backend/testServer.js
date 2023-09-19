@@ -10,7 +10,7 @@ const momentTimezone = require("moment-timezone");
 const moment = require("moment");
 
 const port = 3020;
-const ip = "localhost"; // Listen on all available network interfaces
+const ip = "${process.env.REACT_APP_SERVER_ADDRESS}"; // Listen on all available network interfaces
 const DATA_DIR = path.join(__dirname, "DB");
 
 async function getUsersDataFilePath() {
@@ -24,7 +24,6 @@ async function getUsersDataFilePath() {
     "USERS.json"
   );
 }
-
 
 async function getCurrentTimeInTehran() {
   try {
@@ -497,6 +496,7 @@ userServer.get("/api/is-user-exist/:number", async (req, res) => {
 
   try {
     const USERS_FILE_PATH = await getUsersDataFilePath(); // Call it here in an async context
+    ensureFileAndDirectoryExists(USERS_FILE_PATH);
 
     // Read the user data from the file
     const data = fs.readFileSync(USERS_FILE_PATH, "utf-8");
@@ -530,7 +530,6 @@ userServer.get("/api/is-user-exist/:number", async (req, res) => {
     });
   }
 });
-
 
 userServer.listen(userServerPort, () => {
   console.log(`user server is listening on port ${userServerPort}`);
