@@ -140,6 +140,9 @@ const Auth = ({ onAuthSuccess }) => {
               placeholder="شماره تلفن"
               size="large"
               onChange={onChange}
+              onKeyUp={(e) => {
+                e.key === "Enter" && e.preventDefault()
+              }}
               disabled={isUserExist && true}
               required={true}
             />

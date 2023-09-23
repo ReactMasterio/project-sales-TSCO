@@ -1438,5 +1438,29 @@
       "likes": 3,
       "dislikes": 4
     }
+  },
+  {
+    "productID": 9375719,
+    "commentCounts": 244,
+    "recommendedCount": 182,
+    "notRecommendedCount": 5,
+    "neutralCount": 57,
+    "totalLikes": 78,
+    "totalDislikes": 47,
+    "recommendedPercentage": 74,
+    "notRecommendedPercentage": 2,
+    "neutralPercentage": 24,
+    "mostLikedInfo": {
+      "title": "کابل تبدیل",
+      "body": "همه وسایل تو قاب هستن خیلی خوبه این ور اون ور نمی افته گم شه ،پشتشم یه جا گوشی داره باحاله..",
+      "likes": 10,
+      "dislikes": 3
+    },
+    "mostDislikedInfo": {
+      "title": " برایم کاربرد نداشت و مرجوع کردم",
+      "body": " برایم کاربرد نداشت و مرجوع کردم",
+      "likes": 0,
+      "dislikes": 5
+    }
   }
 ]
