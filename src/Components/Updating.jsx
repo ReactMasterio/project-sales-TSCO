@@ -1,6 +1,5 @@
 import React from "react";
-import { Empty, Typography, Spin } from "antd";
-import { LoadingOutlined } from "@ant-design/icons";
+import { Empty, Typography } from "antd";
 import Lottie from "react-lottie"; // Import the Lottie component
 import animatedSVG from "../assets/Updating_icon_Animated.json";
 

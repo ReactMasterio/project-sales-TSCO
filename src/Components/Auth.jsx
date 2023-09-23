@@ -13,13 +13,19 @@ const Auth = ({ onAuthSuccess }) => {
   const [loggedUserAccessType, setLoggedUserAccessType] = useState("");
 
   const [form] = Form.useForm();
+  const BASE_URL = "https://localhost";
 
-  const OTP_API = "https://192.168.4.10:8001/api/tatreports/getotp/";
+  const config = {
+    headers: {
+      "Referrer-Policy": "unsafe_url",
+    },
+  };
+  const OTP_API = `https://192.168.4.10:8001/api/tatreports/getotp/`;
 
   const onFinish = async (values) => {
     try {
       if (String(values.ValidationCode) === String(validationCode)) {
-        console.log("Authentication successful");
+        //console.log("Authentication successful");
 
         message.success("Login Successful");
         onAuthSuccess();
@@ -30,10 +36,11 @@ const Auth = ({ onAuthSuccess }) => {
 
         form.resetFields();
       } else {
-        console.log("Authentication failed");
+        //console.log("Authentication failed");
         notification.error({
-          message: "Authentication Failed",
-          description: "Wrong username or password. Please try again.",
+          message: "احراز هویت ناموفق",
+          description:
+            "کد احراز هویت اشتباه است، لطفا کد احراز هویت را برسی کنید",
         });
         form.resetFields();
       }
@@ -45,10 +52,11 @@ const Auth = ({ onAuthSuccess }) => {
   const onNumberCheck = async () => {
     try {
       const response = await axios.get(
-        `http://${process.env.REACT_APP_SERVER_ADDRESS}:3005/api/is-user-exist/0${inputNumberValue}`
+        `${BASE_URL}:3005/api/is-user-exist/0${inputNumberValue}`,
+        config
       );
 
-      console.log(response);
+      // console.log(response);
       if (response.status === 200) {
         setIsUserExist(true);
         // Send a notification when status is 200
@@ -60,25 +68,58 @@ const Auth = ({ onAuthSuccess }) => {
         setLoggedUserName(response.data.name);
         setLoggedUserAccessType(response.data.accessType);
 
-        const otpRespons = await axios.get(`${OTP_API}${inputNumberValue}`);
+        const otpRespons = await axios.get(
+          `${OTP_API}${inputNumberValue}`,
+          config
+        );
         if (otpRespons.status === 200) {
           setValidationCode(otpRespons.data);
-          console.log(otpRespons.data);
+          //console.log(otpRespons.data);
+        } else {
+          notification.error({
+            message: `مشکلی پیش آمده`,
+            description:
+              "لطفا ارتباط با سرویس پیامکی را چک کنید و یا با پشتیبانی تماس بگیرید",
+          });
         }
+      } else if (response.status === 403) {
+        /* do nothing */
       }
     } catch (error) {
-      notification.error({
-        message: `عدم دسترسی`,
-        description:
-          "کاربر گرامی شما اجازه دسترسی و استفاده از این صفحه را ندارید",
-      });
+      if (error.response) {
+        // The request was made, but the server responded with a status code
+        const statusCode = error.response.status;
+        console.error(`Request failed with status code: ${statusCode}`);
+        notification.error({
+          message: `این شماره اجازه دسترسی ندارد`,
+          description: "لطفا با پشتیبانی تماس بگیرید222",
+        });
+      } else if (error.request) {
+        notification.error({
+          message: `No response received from the server.`,
+          description: "لطفا با پشتیبانی تماس بگیرید",
+        });
+        console.error("");
+      } else {
+        notification.error({
+          message: `Error setting up the request:`,
+          description: `${error.message}`,
+        });
+      }
     }
   };
 
   const onChange = (value) => {
     setInputNumberValue(value);
 
-    setIsSendButtonDisabled(!value);
+    // Define a regular expression to match Iranian phone numbers.
+    const iranianPhoneNumberPattern = /^(\+98|0)?9\d{9}$/;
+
+    // Check if the entered value matches the pattern.
+    const isValidIranianPhoneNumber = iranianPhoneNumberPattern.test(value);
+
+    // Enable or disable the send button based on validity.
+    setIsSendButtonDisabled(!isValidIranianPhoneNumber);
   };
 
   return (
@@ -95,7 +136,7 @@ const Auth = ({ onAuthSuccess }) => {
             <InputNumber
               className="w-full"
               controls={false}
-              addonBefore={"+98"}
+              addonBefore={<span className="align-middle">+98</span>}
               placeholder="شماره تلفن"
               size="large"
               onChange={onChange}

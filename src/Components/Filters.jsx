@@ -68,26 +68,22 @@ const Filters = ({
 
   const handleSaleChange = (value) => {
     setSale(value);
-    onFilterChange({ sale: value }); // Pass selected sale to parent
-    console.log(value);
+    onFilterChange({ sale: value });
   };
 
   const handlePriceChange = (value) => {
     setPrice(value);
-    onFilterChange({ price: value }); // Pass selected sale to parent
-    console.log(value);
+    onFilterChange({ price: value });
   };
 
   const handleRateChange = (value) => {
     setRate(value);
-    onFilterChange({ rate: value }); // Pass selected sale to parent
-    console.log(value);
+    onFilterChange({ rate: value });
   };
 
   const handleCommentsChange = (value) => {
     setComments(value);
-    onFilterChange({ comments: value }); // Pass selected sale to parent
-    console.log(value);
+    onFilterChange({ comments: value });
   };
 
   // Use the categories prop to populate the options for the category Select
@@ -115,32 +111,26 @@ const Filters = ({
 
   const clearCategory = () => {
     setCategory("all");
-    console.log(category);
   };
 
   const clearSale = () => {
     setSale("all");
-    console.log(sale);
   };
 
   const clearPrice = () => {
     setPrice("all");
-    console.log(price);
   };
 
   const clearRate = () => {
     setRate("all");
-    console.log(rate);
   };
 
   const clearComments = () => {
     setComments("all");
-    console.log(comments);
   };
 
   const clearSeller = () => {
     setSeller("all");
-    console.log(seller);
   };
 
   const handleClearFilters = () => {

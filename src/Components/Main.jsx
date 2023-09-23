@@ -21,6 +21,12 @@ const Main = () => {
   const [lastUpdate, setLastUpdate] = useState(null);
   const [notificationShown, setNotificationShown] = useState(false);
 
+  /*==================== get user information from sessions ====================*/
+
+  const isAuthenticated = sessionStorage.getItem("isAuthenticated");
+  const userName = sessionStorage.getItem("UserName");
+  const accessType = sessionStorage.getItem("AccessType");
+
   const showUpdateNotification = (lastUpdateValue) => {
     notification.info({
       message: "اطلاعات بروزرسانی شده اند.",
@@ -33,27 +39,27 @@ const Main = () => {
     const fetchIsUpdateMode = async () => {
       try {
         const response = await axios.get(
-          `http://${process.env.REACT_APP_SERVER_ADDRESS}:3003/api/is-update-mode`
+          `http://localhost:3003/api/is-update-mode`
         );
         const isUpdateModeValue = response.data.isUpdateMode;
         setIsUpdateMode(isUpdateModeValue);
 
         const lastUpdateResponse = await axios.get(
-          `http://${process.env.REACT_APP_SERVER_ADDRESS}:3004/api/is-server-config`
+          `http://localhost:3004/api/is-server-config`
         );
         const lastUpdateValue = lastUpdateResponse.data.lastUpdateValue;
 
         if (lastUpdateValue !== null && lastUpdateValue !== lastUpdate) {
           // If lastUpdateValue has changed, show the notification
-          console.log(
+          /* console.log(
             "lastUpdateValue : ",
             lastUpdateValue,
             "lastValue : ",
             lastUpdate
-          );
+          ); */
           showUpdateNotification(lastUpdateValue);
         } else {
-          console.log("lastUpdateValue : ", lastUpdateValue);
+          //console.log("lastUpdateValue : ", lastUpdateValue);
         }
 
         setLastUpdate(lastUpdateValue);
@@ -62,7 +68,7 @@ const Main = () => {
       }
     };
 
-    const pollingInterval = 10000;
+    const pollingInterval = 3000;
     const intervalId = setInterval(fetchIsUpdateMode, pollingInterval);
 
     return () => {
@@ -74,7 +80,7 @@ const Main = () => {
     const fetchInitialLastUpdate = async () => {
       try {
         const lastUpdateResponse = await axios.get(
-          `http://${process.env.REACT_APP_SERVER_ADDRESS}:3004/api/is-server-config`
+          `http://localhost:3004/api/is-server-config`
         );
         const lastUpdateValue = lastUpdateResponse.data.lastUpdateValue;
         setLastUpdate(lastUpdateValue);
@@ -85,7 +91,6 @@ const Main = () => {
 
     fetchInitialLastUpdate(); // Fetch initial lastUpdate when the component mounts
   }, []); // Empty dependency array ensures this runs only once
-
 
   const handleCategoryChange = (uniqueCategories) => {
     setCategories(uniqueCategories);

@@ -3,6 +3,16 @@ const moment = require("moment-jalaali");
 const path = require("path");
 const momentTimezone = require("moment-timezone"); // Import moment-timezone
 const axios = require("axios");
+const https = require("https");
+// Create an HTTPS agent with specified TLS version
+const httpsAgent = new https.Agent();
+
+axios.default.httpsAgent = httpsAgent;
+
+
+
+process.env.NODE_TLS_REJECT_UNAUTHORIZED ="0";
+
 
 function removeLastDigit(number) {
   return Math.floor(number / 10);
@@ -40,7 +50,7 @@ class ApiService {
     let listOfProducts = [];
     try {
       const pager = await this.productCount(brandName);
-      for (let i = pager.current_page; i <= pager.total_pages; i++) {
+      for (let i = pager.current_page; i <= /* pager.total_pages */ 3; i++) {
         console.log(`Fetching products - Page ${i}`);
         console.log(listOfProducts.length);
         const fetchModule = await import("node-fetch");
@@ -130,81 +140,103 @@ class ApiService {
   }
 
   async fetchCombinedDataAndSaveToFile(brandName) {
-    try {
-      console.log("Fetching products by brand:", brandName);
-      const startTime = new Date(); // Record start time
-      console.log("Start Time:", startTime);
+  try {
+    console.log("Fetching products by brand:", brandName);
+    const startTime = new Date(); // Record start time
+    console.log("Start Time:", startTime);
 
-      // Use getProductsDataFilePath to get the dynamic file path
-      const productsDataFilePath = await getProductsDataFilePath();
+    // Use getProductsDataFilePath to get the dynamic file path
+    const productsDataFilePath = await getProductsDataFilePath();
 
-      // Ensure the directory path exists
-      ensureDirectoryExists(path.dirname(productsDataFilePath));
+    // Ensure the directory path exists
+    ensureDirectoryExists(path.dirname(productsDataFilePath));
 
-      // Open the JSON file for writing in "write" mode (truncate existing data)
-      const writeStream = fs.createWriteStream(productsDataFilePath);
-      writeStream.write("[\n"); // Start of the JSON array
+    let existingData = [];
 
-      const listOfProducts = await this.fetchProductsByBrand(brandName);
-      console.log("Total products fetched:", listOfProducts.length);
+    // Check if the JSON file already exists
+    if (fs.existsSync(productsDataFilePath)) {
+      // If it exists, read its content as a string
+      const existingDataBuffer = fs.readFileSync(productsDataFilePath);
+      const existingDataString = existingDataBuffer.toString();
 
-      for (let i = 0; i < listOfProducts.length; i++) {
-        const product = listOfProducts[i];
-        console.log(`fetchProductDetails Called`);
-        const productDetailsWithRating = await this.fetchProductDetails(
-          product.id
+      // Check if existingDataString is not empty before parsing
+      if (existingDataString.trim() !== "") {
+        try {
+          // Attempt to parse the content as JSON
+          existingData = JSON.parse(existingDataString);
+
+          if (!Array.isArray(existingData)) {
+            // If it's not an array, clear the content and create an empty array
+            existingData = [];
+            fs.writeFileSync(productsDataFilePath, "[]");
+          }
+        } catch (error) {
+          // Handle parsing errors, if any
+          console.error("Error parsing existing data as JSON:", error);
+          existingData = [];
+        }
+      } else {
+        // If it's an empty string, create an empty array
+        existingData = [];
+        fs.writeFileSync(productsDataFilePath, "[]");
+      }
+    } else {
+      // If it doesn't exist, create an empty array
+      existingData = [];
+    }
+
+    const listOfProducts = await this.fetchProductsByBrand(brandName);
+    console.log("Total products fetched:", listOfProducts.length);
+
+    for (let i = 0; i < listOfProducts.length; i++) {
+      const product = listOfProducts[i];
+      console.log(`fetchProductDetails Called`);
+      const productDetailsWithRating = await this.fetchProductDetails(
+        product.id
+      );
+
+      if (productDetailsWithRating.success) {
+        const ratingValue = productDetailsWithRating.ratingValue;
+        const combinedProduct = this.createCombinedProduct(
+          productDetailsWithRating.productDetails,
+          ratingValue
         );
 
-        if (productDetailsWithRating.success) {
-          const ratingValue = productDetailsWithRating.ratingValue;
-          const combinedProduct = this.createCombinedProduct(
-            productDetailsWithRating.productDetails,
-            ratingValue
-          );
-
-          // Convert the combinedProduct to JSON string
-          const jsonData = JSON.stringify(combinedProduct, null, 2);
-
-          // Write the JSON object
-          writeStream.write(jsonData);
-
-          // Add a comma if it's not the last product in the list
-          if (i < listOfProducts.length - 1) {
-            writeStream.write(",");
-          }
-
-          // Add a newline character if it's not the last product
-          writeStream.write("\n");
-        } else {
-          // Handle the error case here, such as logging the error message
-          console.error(
-            "Error fetching product details:",
-            productDetailsWithRating.error
-          );
-          // You can choose to continue processing or take other actions as needed
-        }
+        // Append the combinedProduct to the existing array
+        existingData.push(combinedProduct);
+      } else {
+        // Handle the error case here, such as logging the error message
+        console.error(
+          "Error fetching product details:",
+          productDetailsWithRating.error
+        );
+        // You can choose to continue processing or take other actions as needed
       }
-
-      // End of the JSON array
-      writeStream.write("]\n");
-
-      // Close the write stream
-      writeStream.end();
-
-      const endTime = new Date(); // Record end time
-      const elapsedTimeMinutes = (endTime - startTime) / (1000 * 60);
-      console.log("Products Data File Path:", productsDataFilePath);
-      console.log(`Total time taken: ${elapsedTimeMinutes.toFixed(2)} minutes`);
-      return listOfProducts;
-    } catch (error) {
-      console.error("Error processing data:", error);
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      
     }
+
+    // Write the updated array to the JSON file
+    fs.writeFileSync(
+      productsDataFilePath,
+      JSON.stringify(existingData, null, 2)
+    );
+
+    const endTime = new Date(); // Record end time
+    const elapsedTimeMinutes = (endTime - startTime) / (1000 * 60);
+    console.log("Products Data File Path:", productsDataFilePath);
+    console.log(`Total time taken: ${elapsedTimeMinutes.toFixed(2)} minutes`);
+    return listOfProducts;
+  } catch (error) {
+    console.error("Error processing data:", error);
   }
+}
+
 }
 
 function ensureJsonFileExists(filePath) {
   if (!fs.existsSync(filePath)) {
-    fs.writeFileSync(filePath, "[]");
+    fs.writeFileSync(filePath, "");
   }
 }
 
@@ -234,7 +266,7 @@ async function getCommentsDataFilePath() {
     String(year),
     "COMMENTS_DATA",
     String(month),
-    String(day), 
+    String(day),
     "COMMENTS_DATA.json"
   );
 }
@@ -278,16 +310,6 @@ async function getCurrentTimeInTehran() {
   }
 }
 
-async function fetchProductIds() {
-  try {
-    const response = await axios.get(`http://${process.env.REACT_APP_SERVER_ADDRESS}:3020/get-product-ids`); // Replace with the actual URI
-    const productIds = response.data;
-    return productIds;
-  } catch (error) {
-    console.error("Error fetching product IDs:", error);
-    return [];
-  }
-}
 
 const fetchCommentsAndStats = async (productID) => {
   const MAX_PAGES = 100;
@@ -403,7 +425,7 @@ const fetchCommentsAndStats = async (productID) => {
 
     console.log(`saving... ${productID}`);
 
-    fetch(`http://${process.env.REACT_APP_SERVER_ADDRESS}:3020/save-stats`, {
+    fetch(`http://localhost:3020/save-stats`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -413,8 +435,7 @@ const fetchCommentsAndStats = async (productID) => {
 
     return updatedStats;
   } catch (error) {
-    console.error("Error fetching data:", error);
-    return false;
+    console.log("jhh")
   }
 };
 
@@ -452,19 +473,18 @@ process.on("SIGINT", async () => {
 });
 
 const setWebsiteUpdateStat = async (state, notification) => {
-  await axios.post(`http://${process.env.REACT_APP_SERVER_ADDRESS}:3003/api/set-update-mode`, {
+  await axios.post(`http://localhost:3003/api/set-update-mode`, {
     value: state,
     notification: notification, // Pass the notification message
   });
 };
 
 let intervalStartTime = Date.now(); // Record the start time
-let intervalId = null; // Variable to store the interval ID
 
 async function sendLastUpdateToServer(lastUpdateValue) {
   try {
     const response = await axios.post(
-      `http://${process.env.REACT_APP_SERVER_ADDRESS}:3004/api/set-server-config`,
+      `http://localhost:3004/api/set-server-config`,
       {
         lastUpdate: lastUpdateValue,
       }
@@ -479,7 +499,7 @@ let isExecuting = false; // Variable to track if the function is already executi
 
 // Function to start the interval
 function startInterval() {
-  intervalId = setInterval(executeAfterInterval, 1 * 60 * 1000);
+  intervalId = setInterval(executeAfterInterval, 1  * 1000);
 }
 
 async function executeAfterInterval() {
@@ -507,7 +527,7 @@ async function executeAfterInterval() {
       setWebsiteUpdateStat(isUpdateMode, message);
       const listOfProducts = await apiService.fetchCombinedDataAndSaveToFile(
         "tsco"
-      ); // Wait for this to complete
+      );
 
       const IDs = listOfProducts.map((product) => product.id);
 
@@ -524,7 +544,6 @@ async function executeAfterInterval() {
 
       // After fetching listOfProducts
       await executeFetchCommentsAndStats(IDs);
-      
     } catch (error) {
       console.error("Error while fetching and saving data:", error);
     } finally {

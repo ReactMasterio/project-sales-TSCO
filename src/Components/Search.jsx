@@ -11,7 +11,7 @@ const Search = ({ onSearch }) => {
   const handleKeyUp = (event) => {
     setSearchValue(event.target.value);
     onSearch(searchValue)
-    console.log(searchValue);
+    //console.log(searchValue);
   };
   useEffect(() => {
     // Update the data here

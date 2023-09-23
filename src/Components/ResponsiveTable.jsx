@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Table, FloatButton } from "antd";
+import { Table, FloatButton, Button } from "antd";
 import ProductDetail from "./ProductDetail";
 import axios from "axios";
 import ErrorCode503 from "./ErrorCode503";
@@ -30,7 +30,7 @@ const columns = [
     dataIndex: "imageSource",
     key: "imageSource",
     render: (imageSource) => (
-      <img src={imageSource} alt="product Image" sizes="100%" />
+      <img src={imageSource} loading="lazy" alt="product Image" sizes="100%" />
     ),
     width: "6%",
   },
@@ -171,14 +171,18 @@ const ResponsiveTable = ({
     const wb = XLSX.utils.book_new();
     // Convert your table data to an array of arrays
     const dataForExcel = data.map((item) => [
-      item.imageSource, // Add image source column
+      { v: item.imageSource, t: "image", w: 100, h: 80 },
       item.productName,
-      toPersianDigits(item.companyPrice), // Convert and add companyPrice
-      toPersianDigits(item.productPrice), // Convert and add productPrice
+      item.companyPrice, // Convert and add companyPrice
+      item.productPrice, // Convert and add productPrice
       item.rating,
       item.productVotes,
       item.productComments,
-      item.productLink,
+      {
+        v: item.productLink,
+        t: "hyperlink",
+        l: { Target: item.productLink, Tooltip: "Visit" },
+      },
       item.productID,
       item.productWarranty,
       item.sellerName,
@@ -203,7 +207,7 @@ const ResponsiveTable = ({
   const showModal = async (rowData) => {
     setSelectedRowData(rowData);
     setSelectedProductID(rowData.productID);
-    console.log("OPEN");
+    //console.log("OPEN");
     setModalVisible(true);
   };
 
@@ -212,22 +216,10 @@ const ResponsiveTable = ({
     setModalVisible(false);
   };
 
-  const cancelSource = axios.CancelToken.source();
-  // Create a single AbortController and its associated signal
-  const abortController = useRef(new AbortController());
-  const { signal } = abortController.current;
-
-  const fetchedStatsMap = new Map();
-
   const handlePaginationChange = async (current, pageSize) => {
     // Get the previous pagination values before updating
     const prevCurrent = tableParams.pagination.current;
     const prevPageSize = tableParams.pagination.pageSize;
-
-    if (prevCurrent !== current) {
-      // If it has changed, cancel any ongoing requests
-      abortController.current.abort();
-    }
 
     setLoading(false);
     setPaginationChanged(true);
@@ -244,21 +236,15 @@ const ResponsiveTable = ({
       current: prevCurrent,
       pageSize: prevPageSize,
     });
-
-    // Cancel ongoing requests from the previous pagination
-    abortControllers.forEach((controller) => {
-      controller.abort();
-    });
-
   };
 
   // Function to fetch initial data and set it as originalData
   const fetchInitialData = () => {
-    fetch(`http://${process.env.REACT_APP_SERVER_ADDRESS}:3000/api/products`)
+    fetch(`http://localhost:3000/api/products`)
       .then((res) => res.json())
       .then((results) => {
         if (!results || results.length === 0) {
-          setInitialLoad(false); // Update initialLoad state
+          setInitialLoad(false);
         } else {
           setData(results);
           setOriginalData(results);
@@ -275,13 +261,17 @@ const ResponsiveTable = ({
         console.error("Error fetching initial data:", error);
       });
   };
+
   useEffect(() => {
     let filteredData = originalData;
 
-    if (searchValue.toLowerCase() !== "") {
+    if (searchValue.toLowerCase().trim() !== "") {
       filteredData = originalData.filter(
         (item) =>
-          item.productName.toLowerCase().includes(searchValue.toLowerCase()) ||
+          item.productName
+            .toLowerCase()
+            .trim()
+            .includes(searchValue.trim().toLowerCase()) ||
           item.productID.toString().includes(searchValue)
       );
     }
@@ -360,7 +350,7 @@ const ResponsiveTable = ({
     }
   }, [data]);
 
-  const fetchCommentsAndStats = async (
+  /* const fetchCommentsAndStats = async (
     productID,
     fetchedProductIDs,
     signal
@@ -381,7 +371,7 @@ const ResponsiveTable = ({
         }
 
         const pageResponse = await fetch(
-          `http://${process.env.REACT_APP_SERVER_ADDRESS}:3002/api/product/${productID}/comments/?page=${page}`,
+          `https://localhost:3002/api/product/${productID}/comments/?page=${page}`,
           { signal: signal }
         );
 
@@ -477,7 +467,7 @@ const ResponsiveTable = ({
       };
 
       const postResponse = await axios.post(
-        `http://${process.env.REACT_APP_SERVER_ADDRESS}:3020/save-stats`,
+        `https://localhost:3020/save-stats`,
         JSON.stringify(updatedStats),
         {
           headers: {
@@ -501,12 +491,18 @@ const ResponsiveTable = ({
       }
       return null;
     }
-  };
-
-  console.log(process.env.REACT_APP_SERVER_ADDRESS);
+  }; */
 
   return (
     <div className="w-full">
+      <Button
+        type="secondary"
+        icon={<FileExcelOutlined />}
+        onClick={exportToExcel}
+      >
+        دریافت اطلاعات در اکسل
+      </Button>
+
       {initialLoad ? (
         <>
           <Table
@@ -521,11 +517,6 @@ const ResponsiveTable = ({
             onRow={(record) => ({
               onClick: () => showModal(record),
             })}
-          />
-          <FloatButton
-            type="primary"
-            onClick={exportToExcel}
-            tooltip={<div>دریافت اطلاعات در اکسل</div>}
           />
           <ProductDetail
             visible={modalVisible}

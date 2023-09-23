@@ -52,7 +52,7 @@ const ProductDetail = ({ visible, onClose, productID, rowData }) => {
       try {
         setLoading(true); // Set loading to true when modal is opened
         axios
-          .get(`http://${process.env.REACT_APP_SERVER_ADDRESS}:3020/get-comment-stats/${productID}`)
+          .get(`http://localhost:3020/get-comment-stats/${productID}`)
           .then((response) => {
             if (response) {
               setLoading(false);
@@ -77,7 +77,7 @@ const ProductDetail = ({ visible, onClose, productID, rowData }) => {
   const fetchComments = async () => {
     try {
       const response = await fetch(
-        `http://${process.env.REACT_APP_SERVER_ADDRESS}:3002/api/product/${productID}/comments?page=1`
+        `http://localhost:3002/api/product/${productID}/comments?page=1`
       );
       const data = await response.json();
 
@@ -91,7 +91,7 @@ const ProductDetail = ({ visible, onClose, productID, rowData }) => {
           break;
         }
         const pageResponse = await fetch(
-          `http://${process.env.REACT_APP_SERVER_ADDRESS}:3002/api/product/${productID}/comments/?page=${page}`
+          `http://localhost:3002/api/product/${productID}/comments/?page=${page}`
         );
         const pageData = await pageResponse.json();
         const pageComments = pageData.data.comments;
@@ -176,7 +176,7 @@ const ProductDetail = ({ visible, onClose, productID, rowData }) => {
         mostDislikedInfo,
       };
 
-      fetch(`http://${process.env.REACT_APP_SERVER_ADDRESS}:3020/save-stats`, {
+      fetch(`http://localhost:3020/save-stats`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -190,7 +190,7 @@ const ProductDetail = ({ visible, onClose, productID, rowData }) => {
           return response.json();
         })
         .then((data) => {
-          console.log(data.message); // This will log "Stats saved successfully"
+          //console.log(data.message); // This will log "Stats saved successfully"
         })
         .catch((error) => {
           console.error("Error saving stats:", error);
@@ -233,7 +233,7 @@ const ProductDetail = ({ visible, onClose, productID, rowData }) => {
           open={visible}
           onCancel={onClose}
           footer={null}
-          title="Product Details"
+          title="جزئیات محصول"
           width="95vw"
           centered
           bodyStyle={{ maxHeight: "80vh", overflow: "auto" }}
@@ -336,10 +336,10 @@ const ProductDetail = ({ visible, onClose, productID, rowData }) => {
                             dir="rtl"
                           >
                             <Title level={4} className="mb-2">
-                              کد: {seller.otherSellerId}
+                              نام فروشنده: {seller.otherSellerName}
                             </Title>
                             <Title level={5} className="mb-2">
-                              نام فروشنده: {seller.otherSellerName}
+                              کد: {seller.otherSellerId}
                             </Title>
                             <Title level={5}>
                               گارانتی: {seller.otherSellerWarranty}

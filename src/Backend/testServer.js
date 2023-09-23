@@ -8,22 +8,25 @@ const jalaliMoment = require("jalali-moment");
 const axios = require("axios");
 const momentTimezone = require("moment-timezone");
 const moment = require("moment");
+const selfsigned = require("selfsigned");
+const https = require("https");
+
+// Generate a self-signed certificate
+const attrs = [{ name: "commonName", value: "localhost" }];
+const pems = selfsigned.generate(attrs, { days: 365 });
+
+// Save the private key and certificate to files
+fs.writeFileSync("key.pem", pems.private);
+fs.writeFileSync("cert.pem", pems.cert);
+
+const options = {
+  key: fs.readFileSync("key.pem"),
+  cert: fs.readFileSync("cert.pem"),
+};
 
 const port = 3020;
-const ip = "${process.env.REACT_APP_SERVER_ADDRESS}"; // Listen on all available network interfaces
+const ip = "localhost"; // Listen on all available network interfaces
 const DATA_DIR = path.join(__dirname, "DB");
-
-async function getUsersDataFilePath() {
-  const { year, month, day, hour } = await getCurrentTimeInTehran();
-  console.log("getUsersDataFilePath called");
-
-  return path.join(
-    DATA_DIR,
-    String(year), // Ensure year is a string
-    "USERS", // Ensure hour is a string
-    "USERS.json"
-  );
-}
 
 async function getCurrentTimeInTehran() {
   try {
@@ -140,7 +143,7 @@ function ensureFileAndDirectoryExists(filePath) {
   }
 
   if (!fs.existsSync(filePath)) {
-    fs.writeFileSync(filePath, "[]");
+    fs.writeFileSync(filePath, "");
   }
 }
 
@@ -389,11 +392,10 @@ productsServer.get("/api/products", async (req, res) => {
     if (fileContents.trim() !== "") {
       res.json(JSON.parse(fileContents));
     } else {
-      res.json(500).json({ error: "internal Error" });
+      res.json(503).json({ error: "No Data" });
     }
   } catch (error) {
-    console.error("Error fetching products:", error);
-    res.status(500).json({ error: "Internal Server Error" });
+    console.log("error 503 No Data");
   }
 });
 
@@ -495,7 +497,7 @@ userServer.get("/api/is-user-exist/:number", async (req, res) => {
   const number = req.params.number;
 
   try {
-    const USERS_FILE_PATH = await getUsersDataFilePath(); // Call it here in an async context
+    const USERS_FILE_PATH = `./USERS/USERS.json`; // Call it here in an async context
     ensureFileAndDirectoryExists(USERS_FILE_PATH);
 
     // Read the user data from the file
@@ -530,7 +532,14 @@ userServer.get("/api/is-user-exist/:number", async (req, res) => {
     });
   }
 });
+// Create an HTTPS server for userServer
+const userServerOptions = {
+  key: fs.readFileSync("key.pem"),
+  cert: fs.readFileSync("cert.pem"),
+};
 
-userServer.listen(userServerPort, () => {
-  console.log(`user server is listening on port ${userServerPort}`);
+const userServerHTTPS = https.createServer(userServerOptions, userServer);
+
+userServerHTTPS.listen(userServerPort, () => {
+  console.log(`user server is running on port ${userServerPort} HTTPS...`);
 });
